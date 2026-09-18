@@ -66,8 +66,6 @@ class PaperPilotReleaseIntegrityV52Test(unittest.TestCase):
             "scores",
             "case_id",
             "events.jsonl",
-            "--mode deterministic",
-            "--mode llm",
             "PAPERPILOT_RESUME_GUIDE.md",
             "RAG_AGENT_INTERVIEW_PLAYBOOK.md",
         ):
@@ -77,8 +75,8 @@ class PaperPilotReleaseIntegrityV52Test(unittest.TestCase):
         self.assertNotIn("v7.0", readme)
         self.assertIn("paperpilot-executive-overview.svg", readme)
         self.assertNotIn("消除 `Muon optimizer` 与粒子物理 muon 的语义歧义", readme)
-        self.assertIn('$env:LANGFUSE_PUBLIC_KEY="<Langfuse public key>"', readme)
-        self.assertIn('$env:LANGFUSE_SECRET_KEY="<Langfuse secret key>"', readme)
+        self.assertIn('LANGFUSE_PUBLIC_KEY', readme)
+        self.assertIn('LANGFUSE_SECRET_KEY', readme)
 
     def test_litellm_is_bounded_to_verified_release_line(self):
         requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")

@@ -88,7 +88,7 @@ class PaperPilotUIV57Test(unittest.TestCase):
 
     def test_public_readme_links_professional_interview_materials(self):
         for marker in (
-            "双 Agent 面试模拟器",
+            "面试素材",
             "PAPERPILOT_RESUME_GUIDE.md",
             "RAG_AGENT_INTERVIEW_PLAYBOOK.md",
         ):

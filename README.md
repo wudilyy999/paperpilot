@@ -213,7 +213,7 @@ PIM 领域协议、三模型比较、50 条 Reader 评测和真实 Bad Case 见
 
 ```powershell
 git clone https://github.com/liyuyang/paperpilot.git
-cd paperpilot-agent
+cd paperpilot
 D:\SOFTWARE\spyder\envs\storm\python.exe -m pip install -e .
 ```
 
@@ -285,15 +285,15 @@ Langfuse 是可选分析后端，不替代本地事件审计或固定 Benchmark 
 Generation，并上报模型、输入/输出摘要、Token、耗时、成本、结束原因和错误。密钥只从运行环境读取，
 不得写入 README、脚本、提交记录或结果文件。
 
-```powershell
-D:\SOFTWARE\spyder\envs\storm\python.exe -m pip install -e ".[observability]"
-$env:PAPERPILOT_OBSERVABILITY="langfuse"
-$env:LANGFUSE_PUBLIC_KEY="<Langfuse public key>"
-$env:LANGFUSE_SECRET_KEY="<Langfuse secret key>"
-$env:LANGFUSE_BASE_URL="https://cloud.langfuse.com"
+```bash
+pip install -e ".[observability]"
+export PAPERPILOT_OBSERVABILITY="langfuse"
+export LANGFUSE_PUBLIC_KEY="<Langfuse public key>"
+export LANGFUSE_SECRET_KEY="<Langfuse secret key>"
+export LANGFUSE_BASE_URL="https://cloud.langfuse.com"
 
-D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\run_langfuse_badcase_demo.py `
-  --output-dir .\results\langfuse_badcase_demo
+# 之后正常跑调研或问答(如 python examples/storm_examples/run_paper_storm_minimax.py ...),
+# trace 会自动上报;未启用时事件写入 <output-dir>/observability/events.jsonl
 ```
 
 ### 观测模型与排查路径
@@ -336,29 +336,7 @@ Trace 与 Span 均携带 `tags`（版本、环境、badcase 等筛选维度）�
 未启用 Langfuse 时，事件仍写入 `<service-root>/observability/events.jsonl`。测试环境设置
 `PAPERPILOT_OFFLINE_TESTS=1` 后会禁用远程 exporter 和模型下载。
 
-## 双 Agent 面试模拟器
-
-模拟器以面试官与候选人两个角色完成结构化 RAG / Agent 技术面试。默认 deterministic 模式不调用
-模型，适合复现题目顺序、追问和 Markdown 记录：
-
-```powershell
-D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\run_rag_interview_simulator.py `
-  --mode deterministic `
-  --rounds 6 `
-  --output .\results\rag_interview_simulation.md
-```
-
-需要模型生成时，先仅在运行环境中配置所选 LiteLLM 提供方的凭据，再显式启用 `llm` 模式；
-解析失败时可选择回退到确定性答案：
-
-```powershell
-D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\run_rag_interview_simulator.py `
-  --mode llm `
-  --model openai/gpt-4o-mini `
-  --rounds 6 `
-  --fallback-on-parse-error `
-  --output .\results\rag_interview_simulation_llm.md
-```
+## 面试素材
 
 简历素材与指标表述边界见 [PAPERPILOT_RESUME_GUIDE.md](docs/PAPERPILOT_RESUME_GUIDE.md)，
 题库、追问与评分要点见 [RAG_AGENT_INTERVIEW_PLAYBOOK.md](docs/RAG_AGENT_INTERVIEW_PLAYBOOK.md)。

@@ -8,7 +8,6 @@ langchain-text-splitters
 langgraph>=1.2,<2.0
 langgraph-checkpoint-sqlite>=3.1,<4.0
 aiosqlite>=0.20,<1.0
-sqlite-vec>=0.1,<1.0
 websockets>=14,<16
 trafilatura
 beautifulsoup4>=4.12,<5.0
