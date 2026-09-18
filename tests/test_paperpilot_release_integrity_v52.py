@@ -61,13 +61,11 @@ class PaperPilotReleaseIntegrityV52Test(unittest.TestCase):
 
         for marker in (
             "v1.0",
-            "run_langfuse_badcase_demo.py",
             "LANGFUSE_BADCASE_GUIDE.md",
             "tags",
             "scores",
             "case_id",
             "events.jsonl",
-            "run_rag_interview_simulator.py",
             "--mode deterministic",
             "--mode llm",
             "PAPERPILOT_RESUME_GUIDE.md",

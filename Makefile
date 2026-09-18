@@ -14,6 +14,3 @@ test-fast:      ## 只跑确定性单测(跳过需要外部 API 的用例)
 
 dashboard:      ## 打开前端仪表盘(纯静态,无需后端)
 	open frontend/paperpilot_dashboard/index.html
-
-demo:           ## 启动 Streamlit 演示
-	cd frontend/demo_light && streamlit run storm.py

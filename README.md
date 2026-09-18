@@ -9,7 +9,6 @@ make install          # 安装依赖
 cp .env.example .env  # 配置 LLM 密钥(推荐 DeepSeek)
 make test-fast        # 离线跑确定性单测
 make dashboard        # 打开前端仪表盘
-make demo             # 启动 Streamlit 演示
 ```
 
 PaperPilot 是基于 Stanford STORM 扩展的论文调研与知识问答平台。系统面向科学论文、
