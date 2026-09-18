@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 
 WIKIPEDIA_REQUEST_HEADERS = {
-    "User-Agent": "PaperStorm/0.1 (research prototype; https://github.com/liyuyang/paperstorm-agent)"
+    "User-Agent": "PaperPilot/0.1 (research prototype; https://github.com/liyuyang/paperpilot)"
 }
 
 

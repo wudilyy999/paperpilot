@@ -8,11 +8,11 @@ from pathlib import Path
 from knowledge_storm.evaluation.public_benchmarks.harness import run_longmemeval_end_to_end
 from knowledge_storm.evaluation.public_benchmarks.llm_reader import LongMemEvalJudge, StreamingReader
 from knowledge_storm.retrieval import SentenceTransformerProvider
-from knowledge_storm.paperstorm_router_llm import _load_flat_toml_env
+from knowledge_storm.paperpilot_router_llm import _load_flat_toml_env
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="PaperStorm LongMemEval-S full end-to-end benchmark")
+    parser = argparse.ArgumentParser(description="PaperPilot LongMemEval-S full end-to-end benchmark")
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--limit", type=int, default=0)

@@ -1,4 +1,4 @@
-"""Layered, auditable context governance for PaperStorm."""
+"""Layered, auditable context governance for PaperPilot."""
 
 import json
 import math
@@ -571,7 +571,7 @@ def build_structured_summary_prompt(messages):
     """Build a provenance-preserving prompt for recursive context summaries."""
     schema = {field_name: [] for field_name in SUMMARY_FIELDS}
     return (
-        "你是 PaperStorm 的上下文压缩器。把历史对话压缩为严格 JSON，不要输出 Markdown。\n"
+        "你是 PaperPilot 的上下文压缩器。把历史对话压缩为严格 JSON，不要输出 Markdown。\n"
         "规则：\n"
         "1. 不得把推测写成事实；事实、决定、待办和未解决问题必须分开。\n"
         "2. 原样保留否定条件、数值、路径、错误、引用 ID、task_id 和 document_id。\n"

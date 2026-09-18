@@ -1,8 +1,8 @@
-# PaperStorm RAG Bad Case 递进结果
+# PaperPilot RAG Bad Case 递进结果
 
 ## P1：查询规划与结构化召回
 
-运行目录：`C:\Users\yzy\Desktop\codex\paperstorm-benchmarks\p1\runs\2026-08-26-final`
+运行目录：`C:\Users\yzy\Desktop\codex\paperpilot-benchmarks\p1\runs\2026-08-26-final`
 
 | 数据集 | 样本 | Recall | MRR | nDCG | P95 | 结论 |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
@@ -38,7 +38,7 @@
 
 ## P2：选择性重排与证据治理
 
-最终目录：`C:\Users\yzy\Desktop\codex\paperstorm-benchmarks\p2\runs\2026-08-26-final-recall-safe`
+最终目录：`C:\Users\yzy\Desktop\codex\paperpilot-benchmarks\p2\runs\2026-08-26-final-recall-safe`
 
 P1 与 P2 的 split、Top K、语料及 query+gold 指纹一致，允许 300 条 SciFact 与 1309 条 QASPER 做配对 Bootstrap 比较（2000 次采样）。
 
@@ -77,9 +77,9 @@ Case 级统计：SciFact Recall 改善 9、退化 1；QASPER Recall 改善 151�
 
 ## P3：Claim-Citation 闭环与 Grounded Answer
 
-全量目录：`C:\Users\yzy\Desktop\codex\paperstorm-benchmarks\p3\runs\2026-08-27-full`（QASPER test 1451/1451 完成）
+全量目录：`C:\Users\yzy\Desktop\codex\paperpilot-benchmarks\p3\runs\2026-08-27-full`（QASPER test 1451/1451 完成）
 
-真实 API smoke 目录：`C:\Users\yzy\Desktop\codex\paperstorm-benchmarks\p3\runs\2026-08-27-smoke-3-retry`
+真实 API smoke 目录：`C:\Users\yzy\Desktop\codex\paperpilot-benchmarks\p3\runs\2026-08-27-smoke-3-retry`
 
 | 评测 | 样本 | Answer F1 | EM | Evidence F1 | Citation P/R | Claim support | Unsupported claim | Token | 成本 |
 | --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: |
@@ -120,7 +120,7 @@ smoke 仅用于验证真实 LLM、结构化解析、引用校验和成本采集�
 
 ## P4：生产治理与发布门禁
 
-正式目录：`C:\Users\yzy\Desktop\codex\paperstorm-benchmarks\p4\runs\2026-08-27-final\production-governance`
+正式目录：`C:\Users\yzy\Desktop\codex\paperpilot-benchmarks\p4\runs\2026-08-27-final\production-governance`
 
 该阶段没有改变相关性算法，因此没有重跑 SciFact、QASPER Retrieval 或 LongMemEval-S。验收完全离线、不联网、不调用 LLM，覆盖 8 个生产治理合同。
 
@@ -166,7 +166,7 @@ query batch=1 后 SciFact 与 QASPER 均完整结束。代价是 SciFact 构建�
 但 Qwen 构建时间是 GTE 的约 `3.10x`，因此默认多语种 CPU Profile 选择 GTE。
 
 完整协议、模型表、具体改善与退化案例、HNSW 参数和面试表达见
-[PAPERSTORM_RETRIEVAL_STACK_UPGRADE.md](PAPERSTORM_RETRIEVAL_STACK_UPGRADE.md)。
+[PAPERPILOT_RETRIEVAL_STACK_UPGRADE.md](PAPERPILOT_RETRIEVAL_STACK_UPGRADE.md)。
 
 ## v7.0：PIM 领域闭环 Pilot
 
@@ -176,4 +176,4 @@ Recall@5 分别为 `0.58/0.64/0.72`；GTE 胜出但 Query P95 为 `188.5 ms`，B
 `0.79 ms`。50 条 Hermes Reader 回答的 Answer F1 为 `0.3983`、Citation Precision 为
 `0.9237`，同时暴露 12 个原始非法引用 ID，证明引用 registry 白名单仍是必要边界。
 
-协议、案例、限制与复现命令见 [PAPERSTORM_DOMAIN_PILOT.md](PAPERSTORM_DOMAIN_PILOT.md)。
+协议、案例、限制与复现命令见 [PAPERPILOT_DOMAIN_PILOT.md](PAPERPILOT_DOMAIN_PILOT.md)。

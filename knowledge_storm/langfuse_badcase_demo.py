@@ -1,4 +1,4 @@
-"""Deterministic RAG badcase demo backed by PaperStorm observability."""
+"""Deterministic RAG badcase demo backed by PaperPilot observability."""
 
 from __future__ import annotations
 
@@ -7,10 +7,10 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
-from .paperstorm_observability import PaperStormObservability, build_observability
+from .paperpilot_observability import PaperPilotObservability, build_observability
 
 
-TRACE_NAME = "paperstorm.rag.badcase"
+TRACE_NAME = "paperpilot.rag.badcase"
 STAGE_NAMES = ("route", "retrieve", "rerank", "context", "reader", "citation_validate")
 
 DEFAULT_COMPOSITE_BADCASE = {
@@ -37,7 +37,7 @@ DEFAULT_COMPOSITE_BADCASE = {
 def run_badcase_demo(
     case: Mapping[str, Any],
     output_dir: Any,
-    observability: Optional[PaperStormObservability] = None,
+    observability: Optional[PaperPilotObservability] = None,
 ) -> Dict[str, Any]:
     """Trace one RAG badcase and return its score and observability summary."""
     data = _validate_case(case)
@@ -52,7 +52,7 @@ def run_badcase_demo(
         TRACE_NAME,
         input={"case_id": data.get("case_id", ""), "question": data.get("question", "")},
         metadata={"badcase_types": badcase_types, "case_metadata": data.get("metadata", {})},
-        tags=["paperstorm", "rag", "badcase"] + badcase_types,
+        tags=["paperpilot", "rag", "badcase"] + badcase_types,
     ) as trace:
         _record_stage_spans(trace, data, scores)
         for name, value in scores.items():
@@ -65,7 +65,7 @@ def run_badcase_demo(
     observer.flush()
     status = observer.status()
     return {
-        "paperstorm_trace_id": trace.trace_id,
+        "paperpilot_trace_id": trace.trace_id,
         "remote_trace_id": _remote_trace_id(trace.remote),
         "scores": scores,
         "badcase_types": badcase_types,

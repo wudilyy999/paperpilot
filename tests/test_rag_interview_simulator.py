@@ -46,7 +46,7 @@ class RagInterviewSimulatorTest(unittest.TestCase):
             ValueError, "missing required categories: Langfuse"
         ):
             simulator_module.RagInterviewSimulator(
-                project_context="PaperStorm interview", questions=questions
+                project_context="PaperPilot interview", questions=questions
             )
 
     def test_custom_questions_allow_multiple_questions_for_one_category(self):
@@ -60,7 +60,7 @@ class RagInterviewSimulatorTest(unittest.TestCase):
         )
 
         session = simulator_module.RagInterviewSimulator(
-            project_context="PaperStorm interview",
+            project_context="PaperPilot interview",
             questions=simulator_module.DEFAULT_QUESTIONS + (duplicate_rag_question,),
         ).run(rounds=len(simulator_module.REQUIRED_CATEGORIES))
 
@@ -73,7 +73,7 @@ class RagInterviewSimulatorTest(unittest.TestCase):
         self.assertIsNotNone(simulator_module)
 
         session = simulator_module.RagInterviewSimulator(
-            project_context="PaperStorm is a research RAG agent."
+            project_context="PaperPilot is a research RAG agent."
         ).run(rounds=len(simulator_module.REQUIRED_CATEGORIES))
 
         self.assertEqual(
@@ -89,7 +89,7 @@ class RagInterviewSimulatorTest(unittest.TestCase):
         self.assertIsNotNone(simulator_module)
 
         simulator = simulator_module.RagInterviewSimulator(
-            project_context="PaperStorm interview"
+            project_context="PaperPilot interview"
         )
         simulator.run(rounds=len(simulator_module.REQUIRED_CATEGORIES))
         previous_answer = simulator.session.turns[-1].answer
@@ -165,7 +165,7 @@ class RagInterviewSimulatorTest(unittest.TestCase):
             return Completion('{"answer": "I would inspect recall and citation validity."}')
 
         turn = simulator_module.RagInterviewSimulator(
-            project_context="PaperStorm interview",
+            project_context="PaperPilot interview",
             llm=llm,
             mode="llm",
         ).run(rounds=1).turns[0]
@@ -182,7 +182,7 @@ class RagInterviewSimulatorTest(unittest.TestCase):
         self.assertIsNotNone(simulator_module)
 
         simulator = simulator_module.RagInterviewSimulator(
-            project_context="PaperStorm interview",
+            project_context="PaperPilot interview",
             llm=lambda prompt: (
                 '{"question": "What would you validate?"}'
                 if '"role": "interviewer"' in prompt
@@ -208,7 +208,7 @@ class RagInterviewSimulatorTest(unittest.TestCase):
             return '{"answer": "I would inspect the retrieved evidence."}'
 
         turn = simulator_module.RagInterviewSimulator(
-            project_context="PaperStorm interview",
+            project_context="PaperPilot interview",
             llm=llm,
             mode="llm",
             fallback_on_parse_error=True,
@@ -227,7 +227,7 @@ class RagInterviewSimulatorTest(unittest.TestCase):
             return "not valid json"
 
         turn = simulator_module.RagInterviewSimulator(
-            project_context="PaperStorm interview",
+            project_context="PaperPilot interview",
             llm=llm,
             mode="llm",
             fallback_on_parse_error=True,

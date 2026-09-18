@@ -1,4 +1,4 @@
-"""Single retrieval contract shared by PaperStorm product and benchmarks."""
+"""Single retrieval contract shared by PaperPilot product and benchmarks."""
 
 import math
 import re
@@ -361,7 +361,7 @@ class RetrievalPipeline:
         )
         provider = getattr(self.index, "embedding_provider", None)
         output = {
-            "schema": "paperstorm-retrieval-result",
+            "schema": "paperpilot-retrieval-result",
             "schema_revision": self.schema_revision,
             "query": query,
             "search_plan": plan.to_dict(),

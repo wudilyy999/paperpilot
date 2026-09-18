@@ -14,9 +14,9 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import RetryPolicy
 from pydantic import BaseModel, Field
 
-from .paperstorm_intent_router import PaperStormIntentRouter
+from .paperpilot_intent_router import PaperPilotIntentRouter
 from .memory_store import LongTermMemoryService
-from .paperstorm_research_qa import evaluate_evidence_sufficiency
+from .paperpilot_research_qa import evaluate_evidence_sufficiency
 
 
 logging.getLogger("langgraph.pregel._retry").setLevel(logging.WARNING)
@@ -88,7 +88,7 @@ class ConversationState(TypedDict, total=False):
 class StormDeepResearchTool:
     name = "storm_deep_research"
     description = (
-        "Run PaperStorm/STORM as an isolated deep-research tool and return only a "
+        "Run PaperPilot/STORM as an isolated deep-research tool and return only a "
         "structured conclusion, citations, task id, evidence summary, and artifact URI."
     )
     input_schema = {
@@ -191,14 +191,14 @@ class StormDeepResearchTool:
         }
 
 
-class PaperStormConversationRuntime:
+class PaperPilotConversationRuntime:
     runtime_name = "conversation-runtime"
 
     def __init__(
         self,
         root_dir,
         task_service,
-        intent_router: Optional[PaperStormIntentRouter] = None,
+        intent_router: Optional[PaperPilotIntentRouter] = None,
         memory_service: Optional[LongTermMemoryService] = None,
         deep_research_tool=None,
         chat_llm: Optional[Callable[[str], str]] = None,
@@ -211,7 +211,7 @@ class PaperStormConversationRuntime:
         self.result_dir.mkdir(parents=True, exist_ok=True)
         self.trace_dir.mkdir(parents=True, exist_ok=True)
         self.task_service = task_service
-        self.intent_router = intent_router or PaperStormIntentRouter()
+        self.intent_router = intent_router or PaperPilotIntentRouter()
         self.chat_llm = chat_llm
         self.evidence_judge = evidence_judge
         self.memory_service = memory_service or LongTermMemoryService(
@@ -321,7 +321,7 @@ class PaperStormConversationRuntime:
                 "max_attempts": 2,
                 "retry_on": ["ConnectionError", "TimeoutError"],
             },
-            "long_term_memory": "PaperStorm namespace memory store",
+            "long_term_memory": "PaperPilot namespace memory store",
             "deep_research_tool": self.deep_research_tool.to_schema()
             if hasattr(self.deep_research_tool, "to_schema")
             else {"name": self.deep_research_tool.name},
@@ -560,7 +560,7 @@ class PaperStormConversationRuntime:
                 if reply.get("content") or reply.get("error"):
                     return reply
             except Exception as error:
-                from .paperstorm_router_llm import classify_llm_error
+                from .paperpilot_router_llm import classify_llm_error
 
                 return {
                     "content": "",
@@ -592,7 +592,7 @@ class PaperStormConversationRuntime:
         }
 
     def _chat_llm_answer(self, state: ConversationState) -> Dict:
-        from .paperstorm_router_llm import select_output_budget
+        from .paperpilot_router_llm import select_output_budget
 
         contract = (state.get("router_decision") or {}).get("response_contract") or {}
         budget = select_output_budget(state.get("message") or "", contract)
@@ -1013,7 +1013,7 @@ def _casual_answer(message: str, memory_recall: Dict):
             "；".join(str(item.get("content") or "") for item in recalled[:3])
         )
     if "你是谁" in text or "模型" in text:
-        return "我是 PaperStorm 的 LangGraph Conversation Runtime 演示层，基础模型由运行时配置决定。"
+        return "我是 PaperPilot 的 LangGraph Conversation Runtime 演示层，基础模型由运行时配置决定。"
     if any(token in text for token in ["逻辑", "实现", "流程", "知识库", "工作方式"]):
         return (
             "知识库问答的流程是：问题进来先做意图路由和记忆召回，然后用混合检索"
@@ -1023,13 +1023,13 @@ def _casual_answer(message: str, memory_recall: Dict):
         )
     if "能做什么" in text or "可以做什么" in text or "介绍一下" in text:
         return (
-            "我是 PaperStorm Research Agent，可以陪你聊天、回答论文调研与技术问题，"
+            "我是 PaperPilot Research Agent，可以陪你聊天、回答论文调研与技术问题，"
             "也能基于 arXiv/本地 PDF 做深度调研、生成带引用的中文综述，并管理跨会话记忆。"
             "你可以直接问‘PIM 是什么？’试试深度调研，或者问‘你能做什么？’了解能力边界。"
         )
     if any(token in text for token in ["面试", "求职", "简历", "offer", "hr"]):
         return (
-            "面试准备可以按四条主线来：1) 项目定位——PaperStorm 是在 Stanford STORM 上做的"
+            "面试准备可以按四条主线来：1) 项目定位——PaperPilot 是在 Stanford STORM 上做的"
             "工程化增强，不是从零写聊天机器人；2) 实现细节——RAG（BM25+Dense+RRF）、可恢复"
             " Context、可治理 Memory、LangGraph 编排、SQLite WAL 治理；3) 数据说话——seed 集"
             "检索 Recall@K 从 0.36 提到 0.78~0.99，Context 压缩省 66% 且可恢复；4) 边界——"
@@ -1069,11 +1069,11 @@ def _casual_chat_prompt(state: ConversationState) -> str:
     decision = state.get("router_decision") or {}
     contract = decision.get("response_contract") or {}
     return (
-        "你是 PaperStorm Research Agent 的聊天回复生成器。用户可能在聊天、问系统能力，"
+        "你是 PaperPilot Research Agent 的聊天回复生成器。用户可能在聊天、问系统能力，"
         "也可能要求创作或讨论技术。请用自然、简洁、有温度的中文回复，不要提内部实现"
         "细节；用户问到算法/实现细节时，按【系统事实】如实简要回答，不要编造，"
         "也不要主动展开未问到的内容。不要编造不存在的功能。除非用户明确询问身份，"
-        "禁止用‘你好，我是 PaperStorm’或类似自我介绍作为回答或错误回退。"
+        "禁止用‘你好，我是 PaperPilot’或类似自我介绍作为回答或错误回退。"
         "用户问系统自身（算法、知识库逻辑、实现细节）时，必须直接按【系统事实】回答，"
         "禁止使用检索标记。\n"
         "【系统事实】\n"
@@ -1086,7 +1086,7 @@ def _casual_chat_prompt(state: ConversationState) -> str:
         "- 知识库问答：意图路由 → 记忆召回 → 混合检索 → 证据裁判 → 带引用回答；"
         "新调研作为独立高成本工具，需要显式授权。\n"
         "- 记忆：短期对话、FTS5 跨会话历史、长期用户事实和论文证据彼此隔离。\n"
-        "- 当前运行模式：{run_mode}（fake=本地模拟调研；paperstorm=真实检索+LLM）。\n"
+        "- 当前运行模式：{run_mode}（fake=本地模拟调研；paperpilot=真实检索+LLM）。\n"
         "这是同一会话的连续对话，你有完整的会话上下文（不是没有记忆），请自然地接着聊。\n"
         "如果你能直接回答，就直接回答；只有当你认为必须检索外部资料/论文才能回答时，"
         "才只回复一行：{0}\n"
@@ -1303,7 +1303,7 @@ def _is_greeting(message: str) -> bool:
 
 def _greeting_reply(message: str) -> str:
     variants = [
-        "你好呀！我是 PaperStorm，论文调研和知识库问答都能帮你。想聊点啥？",
+        "你好呀！我是 PaperPilot，论文调研和知识库问答都能帮你。想聊点啥？",
         "嗨，我在呢。你可以问我技术问题，也可以让我去检索论文，或者就是随便聊聊。",
         "你好！直接说需求就行——提问、调研论文、管理记忆都可以。",
         "哈喽！有什么想聊的？论文、面试、技术问题都行。",

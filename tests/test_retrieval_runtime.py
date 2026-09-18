@@ -6,9 +6,9 @@ from pathlib import Path
 from unittest import mock
 
 
-class PaperStormRetrievalRuntimeTest(unittest.TestCase):
+class PaperPilotRetrievalRuntimeTest(unittest.TestCase):
     def test_runtime_accepts_real_storm_url_keyed_search_results(self):
-        from knowledge_storm.paperstorm_qa import PaperStormKnowledgeBase
+        from knowledge_storm.paperpilot_qa import PaperPilotKnowledgeBase
 
         with tempfile.TemporaryDirectory() as temp_dir:
             run_dir = Path(temp_dir)
@@ -31,12 +31,12 @@ class PaperStormRetrievalRuntimeTest(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            kb = PaperStormKnowledgeBase.from_run_dir(run_dir)
+            kb = PaperPilotKnowledgeBase.from_run_dir(run_dir)
             with mock.patch.dict(
                 os.environ,
                 {
-                    "PAPERSTORM_RETRIEVAL_EMBEDDING": "hash",
-                    "PAPERSTORM_RETRIEVAL_MODE": "hybrid",
+                    "PAPERPILOT_RETRIEVAL_EMBEDDING": "hash",
+                    "PAPERPILOT_RETRIEVAL_MODE": "hybrid",
                 },
             ):
                 evidence = kb.search("Muon optimizer", top_k=3)
@@ -89,14 +89,14 @@ class PaperStormRetrievalRuntimeTest(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            from knowledge_storm.paperstorm_qa import PaperStormKnowledgeBase
+            from knowledge_storm.paperpilot_qa import PaperPilotKnowledgeBase
 
-            kb = PaperStormKnowledgeBase.from_run_dir(run_dir)
+            kb = PaperPilotKnowledgeBase.from_run_dir(run_dir)
             with mock.patch.dict(
                 os.environ,
                 {
-                    "PAPERSTORM_RETRIEVAL_EMBEDDING": "hash",
-                    "PAPERSTORM_RETRIEVAL_MODE": "hybrid",
+                    "PAPERPILOT_RETRIEVAL_EMBEDDING": "hash",
+                    "PAPERPILOT_RETRIEVAL_MODE": "hybrid",
                 },
             ):
                 evidence = kb.search("PIM 是什么？", top_k=3)

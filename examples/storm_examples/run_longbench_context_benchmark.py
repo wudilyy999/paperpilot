@@ -8,7 +8,7 @@ from knowledge_storm.evaluation.public_benchmarks.longbench_context import load_
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="PaperStorm LongBench selected-subset scorer")
+    parser = argparse.ArgumentParser(description="PaperPilot LongBench selected-subset scorer")
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--predictions", required=True, help="JSON mapping mode -> prediction rows")
     parser.add_argument("--output", required=True)

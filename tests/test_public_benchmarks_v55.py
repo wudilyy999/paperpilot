@@ -15,9 +15,9 @@ class PublicBenchmarkOfflineGuardTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {}, clear=True):
             restore = install_offline_test_guard()
             try:
-                self.assertEqual(os.environ["PAPERSTORM_CHAT_LLM"], "0")
-                self.assertEqual(os.environ["PAPERSTORM_JUDGE_LLM"], "0")
-                self.assertEqual(os.environ["PAPERSTORM_ROUTER_LLM"], "0")
+                self.assertEqual(os.environ["PAPERPILOT_CHAT_LLM"], "0")
+                self.assertEqual(os.environ["PAPERPILOT_JUDGE_LLM"], "0")
+                self.assertEqual(os.environ["PAPERPILOT_ROUTER_LLM"], "0")
                 with self.assertRaisesRegex(
                     RuntimeError, "offline test blocked network"
                 ):
@@ -48,7 +48,7 @@ class PublicBenchmarkOfflineGuardTest(unittest.TestCase):
         workflow = workflow_path.read_text(encoding="utf-8")
         package_init = (root / "tests" / "__init__.py").read_text(encoding="utf-8")
 
-        self.assertIn("PAPERSTORM_TEST_OFFLINE: 1", workflow)
+        self.assertIn("PAPERPILOT_TEST_OFFLINE: 1", workflow)
         self.assertIn("discover -s tests -t . -v", workflow)
         self.assertIn("install_offline_test_guard", package_init)
 
@@ -419,7 +419,7 @@ class PublicBenchmarkCliTest(unittest.TestCase):
         self.assertIn('"benchmarks": ["datasets', setup_text)
 
     def test_cli_parser_supports_scifact_qasper_and_reproducibility_options(self):
-        from examples.storm_examples.run_paperstorm_public_benchmark import build_parser
+        from examples.storm_examples.run_paperpilot_public_benchmark import build_parser
 
         parser = build_parser()
         args = parser.parse_args(
@@ -492,10 +492,10 @@ class PublicBenchmarkCliTest(unittest.TestCase):
 
         self.assertIsNotNone(captured["context"])
         self.assertGreater(captured["timeout"], 0)
-        self.assertIn("PaperStorm", captured["user_agent"])
+        self.assertIn("PaperPilot", captured["user_agent"])
 
     def test_qasper_smoke_subset_keeps_all_paragraphs_from_selected_paper(self):
-        from examples.storm_examples.run_paperstorm_public_benchmark import (
+        from examples.storm_examples.run_paperpilot_public_benchmark import (
             _evaluation_subset,
         )
         from knowledge_storm.evaluation.public_benchmarks.qasper import (

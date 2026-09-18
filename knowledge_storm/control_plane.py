@@ -499,7 +499,7 @@ class ProductionControlPlane:
         )
 
     def record_span(self, payload: Dict):
-        from .paperstorm_observability import sanitize_payload
+        from .paperpilot_observability import sanitize_payload
 
         span = {
             "span_id": payload.get("span_id") or uuid.uuid4().hex,
@@ -652,7 +652,7 @@ class ProductionControlPlane:
 
 
 class ProductionRuntime:
-    runtime_name = "paperstorm-production-runtime"
+    runtime_name = "paperpilot-production-runtime"
 
     def __init__(
         self,
@@ -663,7 +663,7 @@ class ProductionRuntime:
         chat_llm=None,
         evidence_judge=None,
     ):
-        from .conversation_runtime import PaperStormConversationRuntime
+        from .conversation_runtime import PaperPilotConversationRuntime
 
         self.root_dir = Path(root_dir)
         self.root_dir.mkdir(parents=True, exist_ok=True)
@@ -677,7 +677,7 @@ class ProductionRuntime:
             if legacy_control.exists()
             else self.root_dir / "production.sqlite"
         )
-        self.graph_runtime_class = PaperStormConversationRuntime
+        self.graph_runtime_class = PaperPilotConversationRuntime
 
     def _graph_root(self):
         current = self.root_dir / "conversation_graph"
@@ -713,7 +713,7 @@ class ProductionRuntime:
             with self.control.trace_span(
                 trace_id, "agent_runtime", "conversation_graph"
             ):
-                from .paperstorm_router_llm import (
+                from .paperpilot_router_llm import (
                     build_chat_llm_callable,
                     build_intent_router,
                     build_judge_llm_callable,
@@ -724,7 +724,7 @@ class ProductionRuntime:
                 intent_router = self.intent_router or build_intent_router(
                     run_mode=payload.get("run_mode", "fake")
                 )
-                real_mode = payload.get("run_mode", "fake") == "paperstorm"
+                real_mode = payload.get("run_mode", "fake") == "paperpilot"
                 chat_llm = self.chat_llm or build_chat_llm_callable(enabled=real_mode)
                 evidence_judge = self.evidence_judge or build_judge_llm_callable(
                     enabled=real_mode
@@ -914,7 +914,7 @@ def _call_with_timeout(operation, timeout_seconds):
     timeout = float(timeout_seconds)
     if timeout <= 0:
         raise ValueError("timeout_seconds must be positive")
-    executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="paperstorm-deadline")
+    executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="paperpilot-deadline")
     future = executor.submit(operation)
     try:
         return future.result(timeout=timeout)
@@ -930,7 +930,7 @@ def execute_batch(items, operation, max_workers=4):
     if not callable(operation):
         raise TypeError("operation must be callable")
     workers = max(1, int(max_workers))
-    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="paperstorm-batch") as executor:
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="paperpilot-batch") as executor:
         return list(executor.map(operation, list(items)))
 
 

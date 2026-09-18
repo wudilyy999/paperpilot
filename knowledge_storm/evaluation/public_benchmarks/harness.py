@@ -137,7 +137,7 @@ def run_longmemeval_end_to_end(
         evidence_by_mode = {
             "recent": case["sessions"][-max(1, int(recent_sessions)):],
             "fts_session": _fts_retrieve(case["sessions"], case["question"], top_k),
-            "paperstorm_memory": _paperstorm_memory_retrieve(case, output_dir / "memory-index", embedding_provider, top_k),
+            "paperpilot_memory": _paperpilot_memory_retrieve(case, output_dir / "memory-index", embedding_provider, top_k),
         }
         for mode, evidence_sessions in evidence_by_mode.items():
             key = (case["case_id"], mode)
@@ -175,7 +175,7 @@ def run_longmemeval_end_to_end(
             _append_jsonl(checkpoint, row)
             rows.append(row)
     modes = {}
-    for mode in ("recent", "fts_session", "paperstorm_memory"):
+    for mode in ("recent", "fts_session", "paperpilot_memory"):
         completed = [row for row in rows if row.get("mode") == mode and row.get("status") == "succeeded"]
         modes[mode] = {
             "successful_cases": len(completed),
@@ -245,7 +245,7 @@ def _fts_retrieve(sessions, query, top_k):
         connection.close()
 
 
-def _paperstorm_memory_retrieve(case, root, embedding_provider, top_k):
+def _paperpilot_memory_retrieve(case, root, embedding_provider, top_k):
     namespace = "longmemeval:{0}".format(case["case_id"])
     service = LongTermMemoryService(
         root,

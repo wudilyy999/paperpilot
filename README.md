@@ -1,8 +1,18 @@
-# PaperStorm Agent
+# PaperPilot
 
 > 基于 Stanford STORM 扩展构建的个人研究平台。项目结构与定制说明见 [docs/MY_CUSTOMIZATIONS.md](docs/MY_CUSTOMIZATIONS.md)。
 
-PaperStorm Agent v7.3 是基于 Stanford STORM 扩展的论文调研与知识问答平台。系统面向科学论文、
+## 快速开始
+
+```bash
+make install          # 安装依赖
+cp .env.example .env  # 配置 LLM 密钥(推荐 DeepSeek)
+make test-fast        # 离线跑确定性单测
+make dashboard        # 打开前端仪表盘
+make demo             # 启动 Streamlit 演示
+```
+
+PaperPilot 是基于 Stanford STORM 扩展的论文调研与知识问答平台。系统面向科学论文、
 本地 PDF、Zotero 文献库和企业内部文档，提供多 Agent 深度调研、证据约束问答、混合检索、
 跨会话记忆、上下文治理、运行时恢复、公开 Benchmark 与 Langfuse 可观测性。
 
@@ -13,7 +23,7 @@ PaperStorm Agent v7.3 是基于 Stanford STORM 扩展的论文调研与知识问
 - 新增冻结排名的 QASPER Parent-Context 诊断；官方 test 1,309 题中，gold evidence token coverage 从 `0.808481` 提升至 `0.859614`（`+0.051133`），完整 evidence Recall 基本不变。
 - 使用真实 arXiv 与 DeepSeek API 验证 Muon 优化器完整调研和后续问答链路。
 
-![PaperStorm 调研工作流演示](docs/screenshots/paperstorm-research-flow-v65.gif)
+![PaperPilot 调研工作流演示](docs/screenshots/paperpilot-research-flow-v65.gif)
 
 ## 核心能力
 
@@ -30,27 +40,27 @@ PaperStorm Agent v7.3 是基于 Stanford STORM 扩展的论文调研与知识问
 
 ## 系统架构
 
-![PaperStorm 业务架构](docs/architecture/paperstorm-executive-overview.svg)
+![PaperPilot 业务架构](docs/architecture/paperpilot-executive-overview.svg)
 
-[Draw.io 可编辑源文件](docs/architecture/paperstorm-executive-overview.drawio)
+[Draw.io 可编辑源文件](docs/architecture/paperpilot-executive-overview.drawio)
 
 ### Agent 与数据流
 
-![PaperStorm Agent 系统流程](docs/architecture/paperstorm-agent-system-flow.svg)
+![PaperPilot Agent 系统流程](docs/architecture/paperpilot-agent-system-flow.svg)
 
-[Draw.io 可编辑源文件](docs/architecture/paperstorm-agent-system-flow.drawio)
+[Draw.io 可编辑源文件](docs/architecture/paperpilot-agent-system-flow.drawio)
 
 图中箭头表示执行或数据传递方向；蓝色表示检索数据，绿色表示控制流，深灰表示 STORM 调研主链，橙色表示外部依赖，紫色表示记忆与持久化。
 
 ### 异步运行时顺序
 
-![PaperStorm 异步运行时顺序](docs/architecture/paperstorm-async-runtime-sequence.svg)
+![PaperPilot 异步运行时顺序](docs/architecture/paperpilot-async-runtime-sequence.svg)
 
-[Draw.io 可编辑源文件](docs/architecture/paperstorm-async-runtime-sequence.drawio)
+[Draw.io 可编辑源文件](docs/architecture/paperpilot-async-runtime-sequence.drawio)
 
 ### 官方 STORM 基础架构
 
-PaperStorm 保留 Stanford STORM 的知识策展、视角生成、专家访谈、两阶段大纲生成、并行章节写作
+PaperPilot 保留 Stanford STORM 的知识策展、视角生成、专家访谈、两阶段大纲生成、并行章节写作
 与文章润色流程，并在其外围增加统一 RAG、Memory、Context、Agent Runtime、服务控制面和评测系统。
 官方模块中文说明见 [STORM_OFFICIAL_CN.md](docs/STORM_OFFICIAL_CN.md)。
 
@@ -58,7 +68,7 @@ PaperStorm 保留 Stanford STORM 的知识策展、视角生成、专家访谈�
 Stanford STORM Workflow
         |
         v
-PaperStorm Retrieval / Memory / Context
+PaperPilot Retrieval / Memory / Context
         |
         v
 Conversation Runtime / Production Control Plane
@@ -88,8 +98,8 @@ Source ingestion
 - `knowledge_storm/retrieval_pipeline.py`：产品与 Benchmark 共用的检索契约，固定
   `retrieve/fuse/rerank/gate` stage schema。
 - `knowledge_storm/retrieval_runtime.py`：调研产物索引缓存和运行时适配。
-- `knowledge_storm/paperstorm_qa.py`：带引用的调研结果问答。
-- `knowledge_storm/paperstorm_enterprise_kb.py`：本地文档知识库、ACL、增量重建和缓存失效。
+- `knowledge_storm/paperpilot_qa.py`：带引用的调研结果问答。
+- `knowledge_storm/paperpilot_enterprise_kb.py`：本地文档知识库、ACL、增量重建和缓存失效。
 
 真实服务默认使用 SentenceTransformer。`HashEmbeddingProvider` 仅用于单元测试和 smoke profile，
 不能作为公开质量结果。旧 JSON hash 索引不会被静默读取；系统会明确要求重建，避免检索行为悄然降级。
@@ -125,7 +135,7 @@ RAG 的已知 bad case、工业方案对照和后续路线见
 - `knowledge_storm/memory_policy.py`
 - `knowledge_storm/memory_store.py`
 - `knowledge_storm/context_engine.py`
-- `knowledge_storm/paperstorm_session_recall.py`
+- `knowledge_storm/paperpilot_session_recall.py`
 - `knowledge_storm/conversation_runtime.py`
 - `knowledge_storm/control_plane.py`
 
@@ -181,14 +191,14 @@ hard negatives。该小样本用于工程选型，不替代完整 test 与置信
 100,000 个 384 维随机向量的本机微基准中，USearch HNSW 的 P95 为 `21.591 ms`，Exact
 为 `198.504 ms`，HNSW Recall@10 为 `0.9055`。这是规模行为诊断，不是论文检索质量结论；
 2,000,000 向量只报告原始 float32 容量估算，不外推延迟。完整协议、具体改善/退化案例与边界见
-[PAPERSTORM_RETRIEVAL_STACK_UPGRADE.md](docs/PAPERSTORM_RETRIEVAL_STACK_UPGRADE.md)。
+[PAPERPILOT_RETRIEVAL_STACK_UPGRADE.md](docs/PAPERPILOT_RETRIEVAL_STACK_UPGRADE.md)。
 
 PIM 领域协议、三模型比较、50 条 Reader 评测和真实 Bad Case 见
-[PAPERSTORM_DOMAIN_PILOT.md](docs/PAPERSTORM_DOMAIN_PILOT.md)。
+[PAPERPILOT_DOMAIN_PILOT.md](docs/PAPERPILOT_DOMAIN_PILOT.md)。
 
 详细协议、样本量、split、模型和证据等级见
-[PAPERSTORM_V55_PUBLIC_BENCHMARKS.md](docs/PAPERSTORM_V55_PUBLIC_BENCHMARKS.md) 与
-[PAPERSTORM_V56_MEMORY_CONTEXT.md](docs/PAPERSTORM_V56_MEMORY_CONTEXT.md)。P1-P4 的
+[PAPERPILOT_V55_PUBLIC_BENCHMARKS.md](docs/PAPERPILOT_V55_PUBLIC_BENCHMARKS.md) 与
+[PAPERPILOT_V56_MEMORY_CONTEXT.md](docs/PAPERPILOT_V56_MEMORY_CONTEXT.md)。P1-P4 的
 配对区间、失败候选与具体 Bad Case 见
 [RAG_BADCASE_PROGRESSIVE_RESULTS.md](docs/RAG_BADCASE_PROGRESSIVE_RESULTS.md)。
 
@@ -203,16 +213,16 @@ PIM 领域协议、三模型比较、50 条 Reader 评测和真实 Bad Case 见
 ### 安装
 
 ```powershell
-git clone https://github.com/liyuyang/paperstorm-agent.git
-cd paperstorm-agent
+git clone https://github.com/liyuyang/paperpilot.git
+cd paperpilot-agent
 D:\SOFTWARE\spyder\envs\storm\python.exe -m pip install -e .
 ```
 
 ### 启动服务
 
 ```powershell
-D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\start_paperstorm_service.py `
-  --service-root .\results\paperstorm_demo_service `
+D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\start_paperpilot_service.py `
+  --service-root .\results\paperpilot_demo_service `
   --host 127.0.0.1 `
   --port 8002
 ```
@@ -222,7 +232,7 @@ D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\start_paperstor
 也可以直接通过 Uvicorn 启动 ASGI 应用：
 
 ```powershell
-D:\SOFTWARE\spyder\envs\storm\python.exe -m uvicorn examples.storm_examples.paperstorm_service_api:app `
+D:\SOFTWARE\spyder\envs\storm\python.exe -m uvicorn examples.storm_examples.paperpilot_service_api:app `
   --host 127.0.0.1 `
   --port 8002
 ```
@@ -233,7 +243,7 @@ Web Dashboard 包含三个工作区：
 2. **智能问答模式**：进行多轮聊天；证据不足时可升级检索或深度调研；展示时间与 Token 遥测。
 3. **开发者控制台**：发现本地数据集、运行公开 Benchmark、查看命令、日志、状态与结果指标。
 
-![PaperStorm 研究问答](docs/screenshots/dashboard-chat-v64.png)
+![PaperPilot 研究问答](docs/screenshots/dashboard-chat-v64.png)
 
 ### 如何复现公开 Benchmark
 
@@ -242,7 +252,7 @@ Web Dashboard 包含三个工作区：
 
 ```powershell
 # 离线 smoke，仅验证数据适配器、指标和产物链路
-D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\run_paperstorm_public_benchmark.py `
+D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\run_paperpilot_public_benchmark.py `
   --benchmark scifact `
   --dataset-dir <scifact-dir> `
   --output-dir <output-dir> `
@@ -251,7 +261,7 @@ D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\run_paperstorm_
   --smoke-limit 20
 
 # quality profile，使用真实 embedding 与 Cross-Encoder
-D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\run_paperstorm_public_benchmark.py `
+D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\run_paperpilot_public_benchmark.py `
   --benchmark qasper `
   --dataset-dir <qasper-test-json> `
   --output-dir <output-dir> `
@@ -262,10 +272,10 @@ D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\run_paperstorm_
 
 # PIM 领域 pilot，使用 50 条证据绑定问题比较三个真实 Embedding Profile
 D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\run_pim_domain_pilot.py `
-  --corpus "$env:PAPERSTORM_BENCHMARK_ROOT\domain-pim-v7\corpus.jsonl" `
-  --cases "$env:PAPERSTORM_BENCHMARK_ROOT\domain-pim-v7\cases.jsonl" `
-  --output-dir "$env:PAPERSTORM_BENCHMARK_ROOT\domain-pim-v7\runs" `
-  --model-cache "$env:PAPERSTORM_BENCHMARK_ROOT\models" `
+  --corpus "$env:PAPERPILOT_BENCHMARK_ROOT\domain-pim-v7\corpus.jsonl" `
+  --cases "$env:PAPERPILOT_BENCHMARK_ROOT\domain-pim-v7\cases.jsonl" `
+  --output-dir "$env:PAPERPILOT_BENCHMARK_ROOT\domain-pim-v7\runs" `
+  --model-cache "$env:PAPERPILOT_BENCHMARK_ROOT\models" `
   --top-k 5
 ```
 
@@ -278,7 +288,7 @@ Generation，并上报模型、输入/输出摘要、Token、耗时、成本、�
 
 ```powershell
 D:\SOFTWARE\spyder\envs\storm\python.exe -m pip install -e ".[observability]"
-$env:PAPERSTORM_OBSERVABILITY="langfuse"
+$env:PAPERPILOT_OBSERVABILITY="langfuse"
 $env:LANGFUSE_PUBLIC_KEY="<Langfuse public key>"
 $env:LANGFUSE_SECRET_KEY="<Langfuse secret key>"
 $env:LANGFUSE_BASE_URL="https://cloud.langfuse.com"
@@ -291,10 +301,10 @@ D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\run_langfuse_ba
 
 | 业务操作 | Trace / Span | Generation 与关键 Score | 可定位的问题 |
 | --- | --- | --- | --- |
-| 深度调研 | `paperstorm.research`；`persona_generation`、`query_planning`、`retrieve_arxiv`、`knowledge_curation`、`outline_generation`、`article_generation`、`polish`、`pdf_export` | 多角色 LLM 的 Token、延迟、成本与 provider error；`run_success`、`run_score` | 哪个阶段慢、空检索、生成失败、PDF 交付失败 |
-| 多轮问答 | `paperstorm.chat`；`classify`、`memory_recall`、`knowledge_retrieval`、`evidence_grade`、`deep_research`、`answer_with_citations` | `intent_router`、`answer_generation`；`planner_fallback`、`trajectory_success`、`retrieval_triggered` | 意图误判、路由 JSON 解析失败、不该检索却发起调研、引用回答异常 |
+| 深度调研 | `paperpilot.research`；`persona_generation`、`query_planning`、`retrieve_arxiv`、`knowledge_curation`、`outline_generation`、`article_generation`、`polish`、`pdf_export` | 多角色 LLM 的 Token、延迟、成本与 provider error；`run_success`、`run_score` | 哪个阶段慢、空检索、生成失败、PDF 交付失败 |
+| 多轮问答 | `paperpilot.chat`；`classify`、`memory_recall`、`knowledge_retrieval`、`evidence_grade`、`deep_research`、`answer_with_citations` | `intent_router`、`answer_generation`；`planner_fallback`、`trajectory_success`、`retrieval_triggered` | 意图误判、路由 JSON 解析失败、不该检索却发起调研、引用回答异常 |
 | 长期记忆 | `memory_candidate_write`、`memory_recall` | `memory_write_success`、写入原因与候选摘要 | 显式记忆请求被跳过、跨会话召回不足、记忆污染 |
-| Benchmark | `paperstorm.benchmark` | `metrics.json` 对应的 Recall、nDCG、F1、P95 与 run success | 版本回归、质量/延迟权衡、bad case 是否修复 |
+| Benchmark | `paperpilot.benchmark` | `metrics.json` 对应的 Recall、nDCG、F1、P95 与 run success | 版本回归、质量/延迟权衡、bad case 是否修复 |
 
 推荐的闭环是：
 
@@ -307,22 +317,25 @@ D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\run_langfuse_ba
 `memory_write_success=0` 且存在显式“请记住”输入，需查看 `memory_candidate_write` 的跳过原因；
 `run_success=1` 但 `run_score` 偏低，代表任务交付成功但引用或证据质量仍需优化，而不是“系统完全正常”。
 
-报告中的 `remote_trace_id` 仅在 SDK 返回时出现，不能假定其与 PaperStorm 本地 trace ID 等价。
+报告中的 `remote_trace_id` 仅在 SDK 返回时出现，不能假定其与 PaperPilot 本地 trace ID 等价。
 未配置、不可达或 exporter 降级时，仍可在 `<output-dir>/observability/events.jsonl` 审计同一事件链路。
 
 完整的输入合同、筛选步骤与本地 events 降级说明见
 [LANGFUSE_BADCASE_GUIDE.md](docs/LANGFUSE_BADCASE_GUIDE.md)。
 
+Trace 与 Span 均携带 `tags`（版本、环境、badcase 等筛选维度）与 `scores`（`run_success`、`run_score`
+等数值指标）；当前发布线为 v1.0，所有示例命令中的脚本与路径在 `examples/storm_examples/` 内可复现。
+
 映射关系：
 
-| PaperStorm 操作 | Langfuse 对象 | Score |
+| PaperPilot 操作 | Langfuse 对象 | Score |
 | --- | --- | --- |
-| 调研任务 | `paperstorm.research` trace + pipeline spans | run success、scorecard metrics |
-| 对话轮次 | `paperstorm.chat` trace + graph node spans | trajectory success、retrieval triggered |
-| Benchmark | `paperstorm.benchmark` trace | metrics.json 数值指标、run success |
+| 调研任务 | `paperpilot.research` trace + pipeline spans | run success、scorecard metrics |
+| 对话轮次 | `paperpilot.chat` trace + graph node spans | trajectory success、retrieval triggered |
+| Benchmark | `paperpilot.benchmark` trace | metrics.json 数值指标、run success |
 
 未启用 Langfuse 时，事件仍写入 `<service-root>/observability/events.jsonl`。测试环境设置
-`PAPERSTORM_OFFLINE_TESTS=1` 后会禁用远程 exporter 和模型下载。
+`PAPERPILOT_OFFLINE_TESTS=1` 后会禁用远程 exporter 和模型下载。
 
 ## 双 Agent 面试模拟器
 
@@ -348,23 +361,23 @@ D:\SOFTWARE\spyder\envs\storm\python.exe examples\storm_examples\run_rag_intervi
   --output .\results\rag_interview_simulation_llm.md
 ```
 
-简历素材与指标表述边界见 [PAPERSTORM_RESUME_GUIDE.md](docs/PAPERSTORM_RESUME_GUIDE.md)，
+简历素材与指标表述边界见 [PAPERPILOT_RESUME_GUIDE.md](docs/PAPERPILOT_RESUME_GUIDE.md)，
 题库、追问与评分要点见 [RAG_AGENT_INTERVIEW_PLAYBOOK.md](docs/RAG_AGENT_INTERVIEW_PLAYBOOK.md)。
 
 ## 关键环境变量
 
 | 变量 | 说明 |
 | --- | --- |
-| `PAPERSTORM_RETRIEVAL_EMBEDDING` | `auto` / `real` / `hash`；生产默认 real，hash 仅供测试 |
-| `PAPERSTORM_RETRIEVAL_MODE` | `hybrid` / `bm25` / `dense` / `hybrid_rerank` |
-| `PAPERSTORM_EMBEDDING_PROFILE` | `legacy-multilingual` / `cpu-zh` / `cpu-multilingual` / `quality-multilingual` |
-| `PAPERSTORM_RERANKER_PROFILE` | `cpu-balanced` / `quality-gpu` |
-| `PAPERSTORM_RETRIEVAL_INDEX_CACHE_SIZE` | 运行时索引 LRU 容量 |
-| `PAPERSTORM_MODEL_CACHE` | SentenceTransformer/Cross-Encoder 模型缓存目录 |
-| `PAPERSTORM_BENCHMARK_ROOT` | SciFact、QASPER、LongMemEval 等数据集根目录 |
-| `PAPERSTORM_ZOTERO_ROOT` | Zotero 数据目录 |
-| `PAPERSTORM_OBSERVABILITY` | 设置为 `langfuse` 启用远程观测 |
-| `PAPERSTORM_OFFLINE_TESTS` | 设置为 `1` 禁止测试访问远程观测与模型下载 |
+| `PAPERPILOT_RETRIEVAL_EMBEDDING` | `auto` / `real` / `hash`；生产默认 real，hash 仅供测试 |
+| `PAPERPILOT_RETRIEVAL_MODE` | `hybrid` / `bm25` / `dense` / `hybrid_rerank` |
+| `PAPERPILOT_EMBEDDING_PROFILE` | `legacy-multilingual` / `cpu-zh` / `cpu-multilingual` / `quality-multilingual` |
+| `PAPERPILOT_RERANKER_PROFILE` | `cpu-balanced` / `quality-gpu` |
+| `PAPERPILOT_RETRIEVAL_INDEX_CACHE_SIZE` | 运行时索引 LRU 容量 |
+| `PAPERPILOT_MODEL_CACHE` | SentenceTransformer/Cross-Encoder 模型缓存目录 |
+| `PAPERPILOT_BENCHMARK_ROOT` | SciFact、QASPER、LongMemEval 等数据集根目录 |
+| `PAPERPILOT_ZOTERO_ROOT` | Zotero 数据目录 |
+| `PAPERPILOT_OBSERVABILITY` | 设置为 `langfuse` 启用远程观测 |
+| `PAPERPILOT_OFFLINE_TESTS` | 设置为 `1` 禁止测试访问远程观测与模型下载 |
 
 ## 项目结构
 
@@ -382,11 +395,11 @@ knowledge_storm/
   memory_store.py                  # SQLite temporal memory
   conversation_runtime.py          # LangGraph 会话运行时
   control_plane.py                 # ACL、幂等、缓存、任务与 trace
-  paperstorm_service.py            # 应用服务层
+  paperpilot_service.py            # 应用服务层
   evaluation/public_benchmarks/    # SciFact/QASPER/LongMemEval adapters
   evaluation/domain_pilot.py       # 私有领域题集合同与证据校验
 examples/storm_examples/           # FastAPI、MCP 与 Benchmark CLI
-frontend/paperstorm_dashboard/     # 调研、问答和开发者控制台
+frontend/paperpilot_dashboard/     # 调研、问答和开发者控制台
 tests/                              # 离线单元、API、前端与评测契约测试
 docs/                               # 架构、评测协议、路线图与开发记录
 ```

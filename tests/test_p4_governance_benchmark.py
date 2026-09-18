@@ -6,7 +6,7 @@ from pathlib import Path
 
 class P4GovernanceBenchmarkTest(unittest.TestCase):
     def test_offline_suite_writes_auditable_governance_artifacts(self):
-        from knowledge_storm.paperstorm_benchmarks import (
+        from knowledge_storm.paperpilot_benchmarks import (
             run_production_governance_benchmark,
         )
 
@@ -43,7 +43,7 @@ class P4GovernanceBenchmarkTest(unittest.TestCase):
             self.assertFalse(manifest["requires_llm"])
 
     def test_milestone_cli_runs_only_the_p4_offline_suite(self):
-        from examples.storm_examples.run_paperstorm_milestone import main
+        from examples.storm_examples.run_paperpilot_milestone import main
 
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

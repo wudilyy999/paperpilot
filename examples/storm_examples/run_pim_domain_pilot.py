@@ -78,7 +78,7 @@ def run_real_vector_ann(dataset, provider, output_dir, top_k=5):
             }
         )
     report = {
-        "schema": "paperstorm-pim-real-ann-v1",
+        "schema": "paperpilot-pim-real-ann-v1",
         "evidence_tier": "measured_private_domain_pilot",
         "model_name": provider.model_name,
         "vector_count": len(vectors),
@@ -131,7 +131,7 @@ def run_pilot(corpus_path, cases_path, output_dir, model_cache, profiles=DEFAULT
         dataset, providers[best], root / "ann" / best, top_k=top_k
     )
     summary = {
-        "schema": "paperstorm-pim-domain-pilot-v1",
+        "schema": "paperpilot-pim-domain-pilot-v1",
         "case_count": len(dataset.cases),
         "document_count": len(dataset.documents),
         "top_k": int(top_k),

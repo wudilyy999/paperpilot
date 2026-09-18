@@ -1,12 +1,12 @@
 """
-PaperStorm pipeline powered by MiniMax M3 with paper-focused retrievers.
+PaperPilot pipeline powered by MiniMax M3 with paper-focused retrievers.
 
 Example:
     python examples/storm_examples/run_paper_storm_minimax.py \
         --topic "retrieval augmented generation evaluation" \
         --retriever arxiv \
         --output-language zh \
-        --output-dir ./results/paperstorm_zh \
+        --output-dir ./results/paperpilot_zh \
         --do-research \
         --do-generate-outline \
         --do-generate-article \
@@ -27,8 +27,8 @@ from knowledge_storm import (
     STORMWikiLMConfigs,
 )
 from knowledge_storm.lm import LitellmModel
-from knowledge_storm.paperstorm_trace import (
-    PaperStormTraceRecorder,
+from knowledge_storm.paperpilot_trace import (
+    PaperPilotTraceRecorder,
     TracedRetrievalModel,
 )
 from knowledge_storm.rm import ArxivRM, LocalPDFRM
@@ -40,10 +40,10 @@ from examples.storm_examples.run_storm_wiki_minimax import (
 )
 
 
-LOGGER = logging.getLogger("paperstorm")
+LOGGER = logging.getLogger("paperpilot")
 
 
-class PaperStormStdoutFilter:
+class PaperPilotStdoutFilter:
     def __init__(self, stream):
         self.stream = stream
 
@@ -59,7 +59,7 @@ class PaperStormStdoutFilter:
         return getattr(self.stream, name)
 
 
-class PaperStormNoiseFilter(logging.Filter):
+class PaperPilotNoiseFilter(logging.Filter):
     def filter(self, record):
         message = record.getMessage()
         if (
@@ -70,16 +70,16 @@ class PaperStormNoiseFilter(logging.Filter):
         return True
 
 
-def configure_paperstorm_logging(verbose: bool = False):
+def configure_paperpilot_logging(verbose: bool = False):
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(level=level, format="%(name)s : %(levelname)-8s : %(message)s")
 
-    noise_filter = PaperStormNoiseFilter()
+    noise_filter = PaperPilotNoiseFilter()
     root_logger = logging.getLogger()
-    if not any(isinstance(item, PaperStormNoiseFilter) for item in root_logger.filters):
+    if not any(isinstance(item, PaperPilotNoiseFilter) for item in root_logger.filters):
         root_logger.addFilter(noise_filter)
     for handler in root_logger.handlers:
-        if not any(isinstance(item, PaperStormNoiseFilter) for item in handler.filters):
+        if not any(isinstance(item, PaperPilotNoiseFilter) for item in handler.filters):
             handler.addFilter(noise_filter)
 
     for logger_name in (
@@ -92,8 +92,8 @@ def configure_paperstorm_logging(verbose: bool = False):
     ):
         logging.getLogger(logger_name).setLevel(logging.WARNING)
 
-    if not verbose and not isinstance(sys.stdout, PaperStormStdoutFilter):
-        sys.stdout = PaperStormStdoutFilter(sys.stdout)
+    if not verbose and not isinstance(sys.stdout, PaperPilotStdoutFilter):
+        sys.stdout = PaperPilotStdoutFilter(sys.stdout)
 
     warnings.filterwarnings(
         "ignore",
@@ -204,7 +204,7 @@ def build_artifact_paths(article_dir):
 
 
 def main(args):
-    configure_paperstorm_logging(verbose=args.verbose)
+    configure_paperpilot_logging(verbose=args.verbose)
     if os.path.exists("secrets.toml"):
         load_api_key(toml_file_path="secrets.toml")
 
@@ -215,7 +215,7 @@ def main(args):
     )
     output_dir_name = get_output_dir_name(topic)
     article_dir = os.path.join(args.output_dir, output_dir_name)
-    trace = PaperStormTraceRecorder(article_dir, enabled=not args.disable_trace)
+    trace = PaperPilotTraceRecorder(article_dir, enabled=not args.disable_trace)
     trace.emit(
         "run_start",
         topic=topic,
@@ -230,7 +230,7 @@ def main(args):
         do_polish_article=args.do_polish_article,
     )
 
-    LOGGER.info("Starting PaperStorm run")
+    LOGGER.info("Starting PaperPilot run")
     LOGGER.info("Topic: %s", topic)
     LOGGER.info("LLM: %s (%s)", settings["model"], args.llm_provider)
     LOGGER.info("Retriever: %s", args.retriever)
@@ -308,7 +308,7 @@ def main(args):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--topic", type=str, default=None)
-    parser.add_argument("--output-dir", type=str, default="./results/paperstorm")
+    parser.add_argument("--output-dir", type=str, default="./results/paperpilot")
     parser.add_argument("--output-language", choices=["original", "zh"], default="zh")
     parser.add_argument(
         "--llm-provider", choices=["minimax", "deepseek"], default="deepseek"

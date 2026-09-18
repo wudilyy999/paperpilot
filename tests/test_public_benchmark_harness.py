@@ -16,7 +16,7 @@ from knowledge_storm.evaluation.public_benchmarks.harness import (
 from knowledge_storm.evaluation.public_benchmarks.llm_reader import LongMemEvalJudge
 
 
-class PaperStormV60BenchmarkTest(unittest.TestCase):
+class PaperPilotV60BenchmarkTest(unittest.TestCase):
     def test_context_profiles_measure_quality_ttft_tokens_and_cost(self):
         dataset = BenchmarkDataset(
             name="tiny-longbench",
@@ -86,7 +86,7 @@ class PaperStormV60BenchmarkTest(unittest.TestCase):
                 embedding_provider=None,
                 limit=1,
             )
-        self.assertEqual(set(report["modes"]), {"recent", "fts_session", "paperstorm_memory"})
+        self.assertEqual(set(report["modes"]), {"recent", "fts_session", "paperpilot_memory"})
         self.assertEqual(report["case_count"], 1)
         self.assertEqual(report["judge_protocol"], "reader_plus_llm_judge")
         self.assertIn("answer_accuracy", report["modes"]["fts_session"])

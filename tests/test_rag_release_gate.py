@@ -16,7 +16,7 @@ class RagReleaseGateTest(unittest.TestCase):
         }
 
     def test_gate_blocks_latency_regression_and_acl_leak(self):
-        from knowledge_storm.paperstorm_benchmarks import ReleaseGate, ReleaseGatePolicy
+        from knowledge_storm.paperpilot_benchmarks import ReleaseGate, ReleaseGatePolicy
 
         candidate = dict(self._baseline(), p95_ms=140.0, acl_leak_count=1)
         decision = ReleaseGate().evaluate(
@@ -29,7 +29,7 @@ class RagReleaseGateTest(unittest.TestCase):
         self.assertEqual(decision.checks["acl_leak"]["candidate"], 1)
 
     def test_gate_allows_bounded_regressions_and_records_checks(self):
-        from knowledge_storm.paperstorm_benchmarks import ReleaseGate, ReleaseGatePolicy
+        from knowledge_storm.paperpilot_benchmarks import ReleaseGate, ReleaseGatePolicy
 
         candidate = {
             **self._baseline(),
@@ -53,7 +53,7 @@ class RagReleaseGateTest(unittest.TestCase):
         self.assertEqual(decision.checks["recall_at_5"]["status"], "pass")
 
     def test_gate_refuses_incomparable_frozen_inputs(self):
-        from knowledge_storm.paperstorm_benchmarks import ReleaseGate, ReleaseGatePolicy
+        from knowledge_storm.paperpilot_benchmarks import ReleaseGate, ReleaseGatePolicy
 
         candidate = self._baseline()
         candidate["manifest"] = {"dataset_sha256": "different", "protocol_sha256": "p1"}
@@ -65,7 +65,7 @@ class RagReleaseGateTest(unittest.TestCase):
         self.assertIn("manifest_mismatch", decision.reasons)
 
     def test_gate_uses_paired_bootstrap_interval_when_available(self):
-        from knowledge_storm.paperstorm_benchmarks import ReleaseGate, ReleaseGatePolicy
+        from knowledge_storm.paperpilot_benchmarks import ReleaseGate, ReleaseGatePolicy
 
         candidate = {
             **self._baseline(),
@@ -83,7 +83,7 @@ class RagReleaseGateTest(unittest.TestCase):
         self.assertEqual(decision.checks["recall_at_5"]["paired_delta_ci"], [-0.03, -0.02])
 
     def test_offline_replay_summarizes_frozen_predictions_without_network(self):
-        from knowledge_storm.paperstorm_benchmarks import load_offline_replay
+        from knowledge_storm.paperpilot_benchmarks import load_offline_replay
 
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

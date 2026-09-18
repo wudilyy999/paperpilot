@@ -13,10 +13,10 @@ async function main() {
   try {
     const outputs = [];
     for (const item of [
-      {name: "paperstorm-executive-overview", source: "svg", width: 1920, height: 1080},
-      {name: "paperstorm-agent-system-flow", source: "svg", width: 2200, height: 1300},
-      {name: "paperstorm-executive-overview-v57", source: "svg", width: 1920, height: 1080},
-      {name: "paperstorm-agent-system-flow-v57", source: "svg", width: 2200, height: 1300},
+      {name: "paperpilot-executive-overview", source: "svg", width: 1920, height: 1080},
+      {name: "paperpilot-agent-system-flow", source: "svg", width: 2200, height: 1300},
+      {name: "paperpilot-executive-overview-v57", source: "svg", width: 1920, height: 1080},
+      {name: "paperpilot-agent-system-flow-v57", source: "svg", width: 2200, height: 1300},
     ]) {
       const sourcePath = path.join(architectureRoot, `${item.name}.${item.source}`);
       const outputPath = path.join(architectureRoot, `${item.name}.png`);
@@ -39,8 +39,8 @@ async function main() {
       await page.close();
     }
 
-    const sourcePath = path.join(architectureRoot, "paperstorm-system-architecture.html");
-    const outputPath = path.join(architectureRoot, "paperstorm-system-architecture.png");
+    const sourcePath = path.join(architectureRoot, "paperpilot-system-architecture.html");
+    const outputPath = path.join(architectureRoot, "paperpilot-system-architecture.png");
     const sourceUrl = `file:///${sourcePath.replace(/\\/g, "/")}`;
     const page = await browser.newPage({viewport: {width: 2400, height: 1500}, deviceScaleFactor: 1});
     await page.goto(sourceUrl, {waitUntil: "load"});
@@ -84,7 +84,7 @@ async function main() {
       path: outputPath,
       animations: "disabled",
     });
-    outputs.push({name: "paperstorm-system-architecture", ...diagnostics, outputPath});
+    outputs.push({name: "paperpilot-system-architecture", ...diagnostics, outputPath});
     process.stdout.write(`${JSON.stringify(outputs, null, 2)}\n`);
   } finally {
     await browser.close();

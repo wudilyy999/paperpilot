@@ -41,7 +41,7 @@ def build_answer_prompt(cases):
         }
         for case in cases
     ]
-    return """你是 PaperStorm 的中文文献问答 Reader。仅依据每题给出的检索证据回答，不得使用外部知识补齐。
+    return """你是 PaperPilot 的中文文献问答 Reader。仅依据每题给出的检索证据回答，不得使用外部知识补齐。
 
 严格要求：
 1. 只返回 JSON 数组，不要 Markdown，不要额外解释。
@@ -127,7 +127,7 @@ def score_answers(prepared_cases, answer_rows):
         "invalid_citation_count": sum(row["invalid_citation_count"] for row in rows),
         "nonempty_answer_rate": _mean(bool(row["answer"]) for row in rows),
     }
-    return {"schema": "paperstorm-pim-answer-pilot-v1", "metrics": metrics, "predictions": rows}
+    return {"schema": "paperpilot-pim-answer-pilot-v1", "metrics": metrics, "predictions": rows}
 
 
 def prepare_prompts(corpus_path, cases_path, predictions_path, output_dir, batch_size=10):

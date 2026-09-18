@@ -10,7 +10,7 @@ from pathlib import Path
 _LATIN_PATTERN = re.compile(r"[a-z0-9]+(?:[-./][a-z0-9]+)*")
 _CJK_PATTERN = re.compile(r"[\u3400-\u9fff]+")
 DEFAULT_DICTIONARY = (
-    Path(__file__).resolve().parent / "resources" / "paperstorm_domain_terms.txt"
+    Path(__file__).resolve().parent / "resources" / "paperpilot_domain_terms.txt"
 )
 
 
@@ -54,7 +54,7 @@ class JiebaDomainAnalyzer:
             if line.strip() and not line.lstrip().startswith("#")
         )
         digest = hashlib.sha256()
-        digest.update(b"paperstorm-jieba-domain-v1\0")
+        digest.update(b"paperpilot-jieba-domain-v1\0")
         digest.update("\n".join(self.terms).encode("utf-8"))
         self.revision = "jieba-domain-v1:" + digest.hexdigest()[:16]
         self._tokenizer = None
@@ -94,7 +94,7 @@ class JiebaDomainAnalyzer:
 
 def build_text_analyzer(name=None, dictionary_path=None):
     selected = str(
-        name or os.getenv("PAPERSTORM_TEXT_ANALYZER") or "jieba-domain"
+        name or os.getenv("PAPERPILOT_TEXT_ANALYZER") or "jieba-domain"
     ).strip().lower()
     if selected in {"jieba", "jieba-domain", "domain"}:
         return JiebaDomainAnalyzer(dictionary_path=dictionary_path)

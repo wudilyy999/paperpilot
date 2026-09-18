@@ -104,7 +104,7 @@ from litellm.caching.caching import Cache
 def configure_litellm_disk_cache(cache_dir=None):
     disk_cache_dir = str(
         cache_dir
-        or os.getenv("PAPERSTORM_LITELLM_CACHE_DIR")
+        or os.getenv("PAPERPILOT_LITELLM_CACHE_DIR")
         or (Path.home() / ".storm_local_cache")
     )
     Path(disk_cache_dir).mkdir(parents=True, exist_ok=True)
@@ -112,7 +112,7 @@ def configure_litellm_disk_cache(cache_dir=None):
     return disk_cache_dir
 
 
-if str(os.getenv("PAPERSTORM_ENABLE_LITELLM_DISK_CACHE", "0")).lower() in {"1", "true", "yes"}:
+if str(os.getenv("PAPERPILOT_ENABLE_LITELLM_DISK_CACHE", "0")).lower() in {"1", "true", "yes"}:
     configure_litellm_disk_cache()
 
 # 注释掉的代码是 litellm 未安装时的 fallback 处理

@@ -1,4 +1,4 @@
-# PaperStorm 产物清单（Artifact Inventory）
+# PaperPilot 产物清单（Artifact Inventory）
 
 > 本清单回答两件事：**每个产物是什么、有什么用**，以及**在 service 网页端（Dashboard）点哪个按钮才会产生它**。
 > 文档按"网页操作 → 产物"组织；API / CLI 作为备用触发方式标注。路径中的 `<service_root>` = 启动服务时 `--service-root` 指定的目录。
@@ -8,7 +8,7 @@
 
 ## 0. 总览：在网页端点哪个按钮 → 产生什么
 
-> 先决操作：`start_paperstorm_service.py --service-root <service_root>` 启动服务，浏览器打开 `frontend/paperstorm_dashboard/index.html`，顶部填 `http://127.0.0.1:8000`。
+> 先决操作：`start_paperpilot_service.py --service-root <service_root>` 启动服务，浏览器打开 `frontend/paperpilot_dashboard/index.html`，顶部填 `http://127.0.0.1:8000`。
 
 | 你在 Dashboard 点什么 | 产生的产物（相对 `<service_root>`） |
 | --- | --- |
@@ -38,10 +38,10 @@
 
 ### 触发方式（网页端为主线）
 1. 启动 service → 打开 Dashboard → 切到 **"调研写文章"** 模式
-2. 填 **Topic**、选 **运行模式**（`fake`=本地确定性样例 / `paperstorm`=真实调 DeepSeek+arXiv）、填期望/禁止关键词
+2. 填 **Topic**、选 **运行模式**（`fake`=本地确定性样例 / `paperpilot`=真实调 DeepSeek+arXiv）、填期望/禁止关键词
 3. 点 **提交任务** → 点 **运行选中任务** → 点 **轮询选中任务** 查看全部产物
 
-> API 备用：`POST /research-tasks` → `POST /research-tasks/{id}/run`；CLI 备用：`run_paperstorm_service_task.py`。
+> API 备用：`POST /research-tasks` → `POST /research-tasks/{id}/run`；CLI 备用：`run_paperpilot_service_task.py`。
 > 运行模式决定部分产物是否有内容：`fake` 才有 `reflection.txt`；`llm_call_history.jsonl` 只有真实调 LLM 的运行才有内容。
 
 ### 产物明细
@@ -57,7 +57,7 @@
 | `url_to_info.json` | **引用索引**：`url_to_unified_index`（URL→编号）+ `url_to_info`（URL→title/snippets）。**文章生成阶段 ArticleGen 读它写 `[1][2]` 引用**，demo 用它构造参考文献。即"检索对话的产出、文章引用的输入" | research 阶段汇总对话里的 URL 信息后写 |
 | `llm_call_history.jsonl` | **每次真实 LLM 调用的完整日志**。token 数在每行 `usage.prompt_tokens / completion_tokens / total_tokens`，费用在顶层 `cost`（美元）。**注意每行是一个超长 JSON**（JSONL），编辑器里会截断，用命令看（见 7.2） | 每次调 LLM 追加写 |
 | `run_config.json` | 本次运行各阶段 LLM 配置（temperature、max_tokens、api_base），key 已脱敏。**temperature 是代码写死的 1.0**（pipeline:206），不是 LLM 决定的，这里只是记录 | 运行开始时由 STORM engine 写 |
-| `paperstorm_trace.jsonl` | **Runtime 事件流**。一次运行流程：`run_start` → 每个检索 query（`tool_start → retrieval_start → retrieval_end → tool_end`，有结果时接 `artifact_written`）→ `run_end`。Dashboard trace timeline 逐条渲染 | 运行全程，runtime session 逐事件追加 |
+| `paperpilot_trace.jsonl` | **Runtime 事件流**。一次运行流程：`run_start` → 每个检索 query（`tool_start → retrieval_start → retrieval_end → tool_end`，有结果时接 `artifact_written`）→ `run_end`。Dashboard trace timeline 逐条渲染 | 运行全程，runtime session 逐事件追加 |
 | `run_summary.json` | 运行摘要：success、耗时、事件数、检索统计、产物列表 | 运行结束时 |
 | `scorecard.json` / `scorecard.md` | v1 规则打分（total + 各维度分 + notes） | **运行结束自动写**（fake 和 pipeline 都会，不用单独操作） |
 | `qa_answer.json` | **最新一轮**问答答案（answer + citations + evidence + grounded），**覆盖式** | 之后对任务做知识库问答 `POST /knowledge-bases/{task_id}/query` |
@@ -170,9 +170,9 @@ START → classify（意图分类）
 
 | 文件 | 作用 | 生成来源 |
 | --- | --- | --- |
-| `release_demo_summary.json` | 一键演示汇总（任务、文章、QA、scorecard、bundle 聚合） | CLI：`run_paperstorm_release_demo.py` |
-| `frontend/paperstorm_dashboard/sample_data.json` / `.js` | 前端**离线**展示的静态样例数据 | CLI：`run_paperstorm_release_demo.py` 或 `build_paperstorm_demo_bundle.py` |
-| `<service_root>/server.stdout.log` / `server.stderr.log` | uvicorn 服务启动日志 | 每次 `start_paperstorm_service.py` 启动 |
+| `release_demo_summary.json` | 一键演示汇总（任务、文章、QA、scorecard、bundle 聚合） | CLI：`run_paperpilot_release_demo.py` |
+| `frontend/paperpilot_dashboard/sample_data.json` / `.js` | 前端**离线**展示的静态样例数据 | CLI：`run_paperpilot_release_demo.py` 或 `build_paperpilot_demo_bundle.py` |
+| `<service_root>/server.stdout.log` / `server.stderr.log` | uvicorn 服务启动日志 | 每次 `start_paperpilot_service.py` 启动 |
 
 ---
 
@@ -190,9 +190,9 @@ python -c "import json; d=[json.loads(l) for l in open(r'<路径>\llm_call_histo
 ```
 
 ### 7.3 `run_config.json` 的 temperature 是 LLM 决定的吗？
-不是，代码写死的：`paperstorm_pipeline.py:206` 统一 `temperature=1.0`。temperature 是采样随机性参数（0=确定），由调用方设定，模型不参与、运行中不变。该文件只是记录。
+不是，代码写死的：`paperpilot_pipeline.py:206` 统一 `temperature=1.0`。temperature 是采样随机性参数（0=确定），由调用方设定，模型不参与、运行中不变。该文件只是记录。
 
-### 7.4 `paperstorm_trace.jsonl` 的流程
+### 7.4 `paperpilot_trace.jsonl` 的流程
 `run_start` → 每个检索 query：`tool_start → retrieval_start → retrieval_end → tool_end`（有结果接 `artifact_written`）→ `run_end`。字段：`ts` + `event` + 业务上下文，由 `RuntimeEvent` 统一格式写出，Dashboard timeline 渲染。
 
 ### 7.5 `qa_answer.json` vs `qa_history.json`
@@ -203,10 +203,10 @@ python -c "import json; d=[json.loads(l) for l in open(r'<路径>\llm_call_histo
 | 来源 | 知识库问答 `POST /knowledge-bases/{task_id}/query`（`write_qa_artifact`） | Research QA `POST /research-agent/ask`（`_append_qa_history`） |
 
 ### 7.6 `pipeline_worker.json` 的作用
-写于 `paperstorm_pipeline.py:261`，任务结束（scorecard 算完）时落盘。是 service 给任务的**身份标签**：runner / retriever / llm_provider / llm_model / score。Dashboard "Pipeline Worker 面板"读它展示"谁跑的、多少分"。
+写于 `paperpilot_pipeline.py:261`，任务结束（scorecard 算完）时落盘。是 service 给任务的**身份标签**：runner / retriever / llm_provider / llm_model / score。Dashboard "Pipeline Worker 面板"读它展示"谁跑的、多少分"。
 
 ### 7.7 为什么 `reflection.txt` 只有 fake 模式写
-是 fake 内置生成器**刻意造的确定性占位**（`paperstorm_service.py:748`），让 fake 演示也有"Critic 反思"味道。真实 pipeline（paperstorm_pipeline.py）**没有写 reflection 的步骤**，真实 Critic 输出在 agent trace / 记忆里。
+是 fake 内置生成器**刻意造的确定性占位**（`paperpilot_service.py:748`），让 fake 演示也有"Critic 反思"味道。真实 pipeline（paperpilot_pipeline.py）**没有写 reflection 的步骤**，真实 Critic 输出在 agent trace / 记忆里。
 
 ### 7.8 `chat_sessions/` 三个文件的区别
 实际是**两个 `.json`（两个不同会话）+ 一个 `.context.jsonl`**。`.json` 是会话**状态快照**（创建时写、发消息覆盖）；`.context.jsonl` 是**追加式上下文事件流**（带 `sequence` 序号）。没有 context 文件 = 该会话从未发过消息。

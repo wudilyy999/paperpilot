@@ -1,8 +1,8 @@
-# PaperStorm RAG Bad Case、工业方案与改进路线
+# PaperPilot RAG Bad Case、工业方案与改进路线
 
 ## 1. 结论
 
-PaperStorm 已把研究问答、企业知识库和 Benchmark 统一到 `RetrievalPipeline`，并完成
+PaperPilot 已把研究问答、企业知识库和 Benchmark 统一到 `RetrievalPipeline`，并完成
 SearchPlan、结构化 Parent-Child 召回、选择性 Cross-Encoder、recall-safe MMR、证据冲突治理、
 Claim-Citation 校验、检索前 ACL、运行韧性和离线 Release Gate。项目已从基础 RAG 原型演进为
 可复现、可审计的工程基线，但仍不能等同于完成线上容量验证和预发布 canary 的成熟商业系统。

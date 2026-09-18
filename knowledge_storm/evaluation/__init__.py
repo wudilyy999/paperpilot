@@ -1,1 +1,1 @@
-"""PaperStorm evaluation packages."""
+"""PaperPilot evaluation packages."""

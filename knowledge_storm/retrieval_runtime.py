@@ -1,10 +1,10 @@
-"""Runtime adapter for the unified PaperStorm retrieval pipeline.
+"""Runtime adapter for the unified PaperPilot retrieval pipeline.
 
 Env knobs:
-    PAPERSTORM_RETRIEVAL_EMBEDDING auto | real | hash    (default auto)
-    PAPERSTORM_RETRIEVAL_MODE      hybrid | bm25 | dense | hybrid_rerank (default hybrid)
-    PAPERSTORM_EMBEDDING_MODEL     sentence-transformers model name
-    PAPERSTORM_MODEL_CACHE         huggingface cache folder
+    PAPERPILOT_RETRIEVAL_EMBEDDING auto | real | hash    (default auto)
+    PAPERPILOT_RETRIEVAL_MODE      hybrid | bm25 | dense | hybrid_rerank (default hybrid)
+    PAPERPILOT_EMBEDDING_MODEL     sentence-transformers model name
+    PAPERPILOT_MODEL_CACHE         huggingface cache folder
 """
 
 import argparse
@@ -34,7 +34,7 @@ def runtime_stack(override: Optional[str] = None) -> str:
 
 def runtime_embedding(override: Optional[str] = None) -> str:
     value = (
-        override or os.getenv("PAPERSTORM_RETRIEVAL_EMBEDDING") or "auto"
+        override or os.getenv("PAPERPILOT_RETRIEVAL_EMBEDDING") or "auto"
     ).strip().lower()
     if value not in {"auto", "real", "hash"}:
         value = "auto"
@@ -45,7 +45,7 @@ def runtime_embedding(override: Optional[str] = None) -> str:
 
 
 def runtime_mode(override: Optional[str] = None) -> str:
-    value = (override or os.getenv("PAPERSTORM_RETRIEVAL_MODE") or "hybrid").strip().lower()
+    value = (override or os.getenv("PAPERPILOT_RETRIEVAL_MODE") or "hybrid").strip().lower()
     if value not in {"hybrid", "bm25", "dense", "hybrid_rerank"}:
         value = "hybrid"
     return value
@@ -58,7 +58,7 @@ _INDEX_LRU_LOCK = threading.Lock()
 
 def _index_cache_maxsize() -> int:
     try:
-        return max(0, int(os.getenv("PAPERSTORM_RETRIEVAL_INDEX_CACHE_SIZE", "16")))
+        return max(0, int(os.getenv("PAPERPILOT_RETRIEVAL_INDEX_CACHE_SIZE", "16")))
     except ValueError:
         return 16
 
@@ -156,7 +156,7 @@ def _dense_provider(embedding: str):
 
         _REAL_EMBEDDING_PROVIDER = SentenceTransformerProvider(
             profile=profile,
-            cache_folder=os.getenv("PAPERSTORM_MODEL_CACHE") or os.getenv("HF_HOME"),
+            cache_folder=os.getenv("PAPERPILOT_MODEL_CACHE") or os.getenv("HF_HOME"),
         )
     return _REAL_EMBEDDING_PROVIDER
 
@@ -235,7 +235,7 @@ def search_runtime_index(
         from .retrieval import CrossEncoderReranker
 
         reranker = CrossEncoderReranker(
-            cache_folder=os.getenv("PAPERSTORM_MODEL_CACHE") or os.getenv("HF_HOME")
+            cache_folder=os.getenv("PAPERPILOT_MODEL_CACHE") or os.getenv("HF_HOME")
         )
     from .retrieval_pipeline import RetrievalPipeline, RetrievalRequest
 

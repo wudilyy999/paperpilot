@@ -39,7 +39,7 @@ def build_parser():
     parser.add_argument("--model", default="gpt-4o-mini")
     parser.add_argument(
         "--project-context",
-        default="PaperStorm is a production-oriented research and RAG agent.",
+        default="PaperPilot is a production-oriented research and RAG agent.",
     )
     parser.add_argument(
         "--fallback-on-parse-error",

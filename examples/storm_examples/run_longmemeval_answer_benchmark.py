@@ -1,4 +1,4 @@
-"""Run PaperStorm LongMemEval answer generation on a subset of questions.
+"""Run PaperPilot LongMemEval answer generation on a subset of questions.
 
 1/4 protocol run: uses the persisted v5.6 memory index for evidence retrieval and
 a DeepSeek reader for answers. Checkpoint/resume per question; costs real API
@@ -21,12 +21,12 @@ from knowledge_storm.evaluation.public_benchmarks.longmemeval_answer import (
 )
 from knowledge_storm.memory_store import LongTermMemoryService
 from knowledge_storm.retrieval import SentenceTransformerProvider
-from knowledge_storm.paperstorm_router_llm import _load_flat_toml_env
+from knowledge_storm.paperpilot_router_llm import _load_flat_toml_env
 
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        description="PaperStorm LongMemEval end-to-end answer benchmark (subset)"
+        description="PaperPilot LongMemEval end-to-end answer benchmark (subset)"
     )
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--memory-root", required=True)

@@ -15,13 +15,13 @@ with open("requirements.txt", encoding="utf-8") as f:
 
 
 setup(
-    name="paperstorm-agent",
-    version="7.3.0",
-    author="liyuyang; PaperStorm contributors; Stanford OVAL contributors",
-    description="PaperStorm Agent: a production-oriented research and RAG agent built on Stanford STORM.",
+    name="paperpilot",
+    version="1.0.0",
+    author="liyuyang; PaperPilot contributors; Stanford OVAL contributors",
+    description="PaperPilot Agent: a production-oriented research and RAG agent built on Stanford STORM.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/liyuyang/paperstorm-agent",
+    url="https://github.com/liyuyang/paperpilot",
     license="MIT License",
     packages=find_packages(),
     classifiers=[

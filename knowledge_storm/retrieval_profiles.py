@@ -1,4 +1,4 @@
-"""Frozen embedding profiles shared by PaperStorm retrieval surfaces."""
+"""Frozen embedding profiles shared by PaperPilot retrieval surfaces."""
 
 import os
 from dataclasses import dataclass
@@ -185,7 +185,7 @@ RERANKER_PROFILES = MappingProxyType({
 
 def get_reranker_profile(name=None):
     key = str(
-        name or os.getenv("PAPERSTORM_RERANKER_PROFILE") or "cpu-balanced"
+        name or os.getenv("PAPERPILOT_RERANKER_PROFILE") or "cpu-balanced"
     ).strip().lower()
     try:
         return RERANKER_PROFILES[key]
@@ -219,7 +219,7 @@ def resolve_reranker_profile(profile_name=None, model_name=None, device=None):
 
 def get_embedding_profile(name=None):
     key = str(
-        name or os.getenv("PAPERSTORM_EMBEDDING_PROFILE") or DEFAULT_EMBEDDING_PROFILE
+        name or os.getenv("PAPERPILOT_EMBEDDING_PROFILE") or DEFAULT_EMBEDDING_PROFILE
     ).strip().lower()
     try:
         return EMBEDDING_PROFILES[key]
@@ -249,7 +249,7 @@ def custom_embedding_profile(model_name):
 
 
 def resolve_embedding_profile(profile_name=None, model_name=None):
-    override = str(model_name or os.getenv("PAPERSTORM_EMBEDDING_MODEL") or "").strip()
+    override = str(model_name or os.getenv("PAPERPILOT_EMBEDDING_MODEL") or "").strip()
     if override:
         for profile in EMBEDDING_PROFILES.values():
             if profile.model_name == override:

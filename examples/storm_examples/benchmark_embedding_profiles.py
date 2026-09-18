@@ -231,7 +231,7 @@ def run_profile_benchmark(
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(description="Compare PaperStorm embedding profiles on deterministic public query samples")
+    parser = argparse.ArgumentParser(description="Compare PaperPilot embedding profiles on deterministic public query samples")
     parser.add_argument("--benchmarks", nargs="+", choices=("scifact", "qasper"), default=("scifact", "qasper"))
     parser.add_argument("--profiles", nargs="+", choices=DEFAULT_PROFILES, default=DEFAULT_PROFILES)
     parser.add_argument("--sample-ratio", type=float, default=0.1)

@@ -19,7 +19,7 @@ def build_scale_report(measured, estimated_count=2_000_000):
     dimension = int(measured["dimension"])
     estimated_count = int(estimated_count)
     return {
-        "schema": "paperstorm-dense-scale-v1",
+        "schema": "paperpilot-dense-scale-v1",
         "measured": dict(measured, evidence_tier="measured_local"),
         "estimated": {
             "vector_count": estimated_count,

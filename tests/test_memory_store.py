@@ -32,7 +32,7 @@ class CountingEmbedding(KeywordEmbedding):
         return super().embed_query(text)
 
 
-class PaperStormMemoryV56Tests(unittest.TestCase):
+class PaperPilotMemoryV56Tests(unittest.TestCase):
     def test_memory_extractor_prompt_treats_explicit_name_as_positive_example(self):
         from knowledge_storm.memory_store import build_memory_candidate_prompt
 
@@ -301,7 +301,7 @@ class PaperStormMemoryV56Tests(unittest.TestCase):
                 service.upsert(
                     namespace="tenant:user",
                     memory_type="semantic",
-                    subject="paperstorm",
+                    subject="paperpilot",
                     content=content,
                     canonical_key=f"fact-{index}",
                     source_message_ids=[f"source-{index}"],

@@ -1,4 +1,4 @@
-"""Evaluate PaperStorm v5.6 context budgets on official QASPER rankings."""
+"""Evaluate PaperPilot v5.6 context budgets on official QASPER rankings."""
 
 import argparse
 import json
@@ -15,7 +15,7 @@ def build_parser():
         description="Run the QASPER context-budget diagnostic without an LLM."
     )
     parser.add_argument("--dataset", required=True, help="Official qasper-test-v0.3.json")
-    parser.add_argument("--rankings", required=True, help="PaperStorm retrieval predictions.jsonl")
+    parser.add_argument("--rankings", required=True, help="PaperPilot retrieval predictions.jsonl")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--mode", default="hybrid_rerank")
     parser.add_argument("--model-context-tokens", type=int, default=8192)

@@ -1,0 +1,1320 @@
+const state = {
+  mode: "research",
+  catalog: null,
+  selectedBenchmark: null,
+  benchmarkRun: null,
+  benchmarkPoll: null,
+  researchTaskId: "",
+  chatId: "",
+  chatSessions: [],
+  chatController: null,
+  lastArticle: "",
+  lastPdfUrl: "",
+  researchEvents: null,
+  pipelineStatus: {},
+  hasStageTrace: false,
+  activeInvocations: {},
+  artifactStatus: {},
+  runFinished: false,
+};
+
+const MILESTONE_PROGRESS = Object.freeze([
+  {
+    id: "p0", label: "P0 baseline", title: "冻结基线", status: "completed",
+    summary: "冻结公开检索、问答和时延基线，后续只做受影响维度的增量对比。",
+    affected_benchmarks: ["SciFact Retrieval", "QASPER Retrieval", "QASPER Answer"],
+    case: {failure_stage: "未提供", trace: "未提供", citation: "未提供"},
+  },
+  {
+    id: "p1", label: "P1", title: "检索相关性", status: "completed",
+    summary: "完成查询规划、结构化 Parent-Child 召回与领域消歧，冻结可复现检索基线。",
+    affected_benchmarks: ["PIM 固定集", "SciFact Retrieval", "QASPER Retrieval"],
+    case: {before_top_k: "未提供", after_top_k: "未提供", failure_stage: "retrieval", trace: "retrieval trace 未提供", citation: "未提供"},
+  },
+  {
+    id: "p12", label: "P1+P2", title: "证据与上下文", status: "completed",
+    summary: "增加选择性 Cross-Encoder、recall-safe MMR、冲突检测与证据充分性门控。",
+    affected_benchmarks: ["SciFact Retrieval", "QASPER Retrieval", "Evidence Governance"],
+    case: {before_top_k: "未提供", after_top_k: "未提供", failure_stage: "context", trace: "context trace 未提供", citation: "未提供"},
+  },
+  {
+    id: "p123", label: "P1+P2+P3", title: "可信回答", status: "completed",
+    summary: "QASPER test 1451 条完成：Answer F1 0.5083，Claim support 0.9592，unsupported claim 0.0214。",
+    affected_benchmarks: ["QASPER Answer", "Claim-Citation Validation"],
+    case: {before_top_k: "P2 冻结 Top 5", after_top_k: "P2 冻结 Top 5", failure_stage: "0 / 1451 generation failures", trace: "predictions.jsonl + claim_validation", citation: "precision 0.5844 / recall 0.5776"},
+  },
+  {
+    id: "p1234", label: "P1+P2+P3+P4", title: "production-governance", status: "completed",
+    summary: "在前述能力上叠加访问范围、超时熔断、脱敏 Trace 与离线 Release Gate。",
+    affected_benchmarks: ["ACL Governance", "Resilience", "Offline Release Gate"],
+    case: {before_top_k: "未提供", after_top_k: "授权范围内候选集", failure_stage: "access control", trace: "policy-scoped trace", citation: "未提供"},
+  },
+]);
+
+let selectedMilestoneId = "p1234";
+
+const pipelineNodes = {
+  request: {title: "任务配置", description: "规范化主题、论文源、语言和运行参数。", input: "用户主题、语言、arXiv 或本地 PDF", output: "Research Task + 运行配置"},
+  retrieval: {title: "混合检索", description: "BM25 与 Dense 双路召回，RRF 融合排序，支持 arXiv API 与本地 PDF。", input: "research_task.json", output: "CandidatePool"},
+  evidence: {title: "证据整理", description: "Persona 多视角访谈，证据充分性判断，产出可引用的信息表。", input: "CandidatePool", output: "conversation_log.json + StormInformationTable"},
+  outline: {title: "两阶段大纲", description: "先按主题生成直接大纲，再使用研究对话细化章节结构。", input: "Conversation Log + 信息表", output: "direct_gen_outline.txt + storm_gen_outline.txt"},
+  writer: {title: "语义筛选与章节写作", description: "原 STORM 使用 MiniLM 余弦相似度为各章节选取 Top-K snippet，再并发生成带引用章节。", input: "StormInformationTable + Refined Outline", output: "storm_gen_article.txt + url_to_info.json"},
+  polish: {title: "全文润色", description: "整篇去重、生成摘要并统一文章结构与表达。", input: "storm_gen_article.txt", output: "storm_gen_article_polished.txt"},
+  evaluate: {title: "引用与质量检查", description: "补齐论文原始标题、作者与链接，并检查领域一致性、引用和完整性。", input: "Polished Article + url_to_info.json", output: "Canonical References + scorecard.json"},
+  deliver: {title: "交付产物", description: "发布 Markdown、Trace、运行配置与可打印 PDF。", input: "Polished Article + Scorecard", output: "Article + Trace + PDF"},
+};
+
+const pipelineStageAliases = Object.freeze({
+  persona: "evidence",
+  dialogue: "evidence",
+  query: "retrieval",
+  retrieval: "retrieval",
+  evidence: "evidence",
+});
+
+const pipelineExecutionEdges = [
+  ["request", "retrieval"], ["retrieval", "evidence"], ["evidence", "outline"],
+  ["outline", "writer"], ["writer", "polish"], ["polish", "evaluate"],
+  ["evaluate", "deliver"],
+];
+
+const pipelineArtifactEdges = [
+  {id: "task-research", from: "request", to: "retrieval", port: "research_task", label: "research_task.json"},
+  {id: "information-evidence", from: "retrieval", to: "evidence", port: "information", label: "CandidatePool"},
+  {id: "conversation-outline", from: "evidence", to: "outline", port: "conversation", label: "conversation_log.json"},
+  {id: "information-writer", from: "evidence", to: "writer", port: "evidence_table", label: "StormInformationTable"},
+  {id: "outline-writer", from: "outline", to: "writer", port: "outline", label: "storm_gen_outline.txt"},
+  {id: "draft-polish", from: "writer", to: "polish", port: "draft", label: "storm_gen_article.txt"},
+  {id: "references-evaluate", from: "writer", to: "evaluate", port: "references", label: "url_to_info.json"},
+  {id: "article-evaluate", from: "polish", to: "evaluate", port: "article", label: "storm_gen_article_polished.txt"},
+  {id: "article-deliver", from: "polish", to: "deliver", sourcePort: "article", targetPort: "article", label: "storm_gen_article_polished.txt"},
+  {id: "score-deliver", from: "evaluate", to: "deliver", port: "scorecard", label: "scorecard.json"},
+];
+
+const pipelineHardRoutes = Object.freeze({
+  execution: {
+    "writer-polish": {right: 4, laneY: .44, left: 8},
+  },
+  artifacts: {
+    "draft-polish": {right: 10, laneY: .61, left: 8},
+    "references-evaluate": {right: 20, laneY: .655, approach: 72},
+  },
+});
+
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => [...document.querySelectorAll(selector)];
+
+function serviceBase() {
+  const configured = $("#service-url")?.value.trim();
+  return (configured || window.location.origin).replace(/\/$/, "");
+}
+
+async function fetchJson(path, options = {}) {
+  const response = await fetch(`${serviceBase()}${path}`, {
+    headers: {"Content-Type": "application/json", ...(options.headers || {})},
+    ...options,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.detail || payload.message || `HTTP ${response.status}`);
+  }
+  return payload;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function toast(message, tone = "info") {
+  const node = $("#toast");
+  node.textContent = message;
+  node.className = `toast ${tone === "error" ? "error" : ""}`;
+  window.clearTimeout(node._hideTimer);
+  node._hideTimer = window.setTimeout(() => node.classList.add("hidden"), 3600);
+}
+
+function setServiceState(status, detail) {
+  const node = $("#service-state");
+  node.className = `service-pill ${status}`;
+  node.querySelector("span").textContent = detail;
+}
+
+function setMode(mode) {
+  state.mode = mode;
+  const developer = mode === "developer";
+  $("#developer-view").classList.toggle("hidden", !developer);
+  $$(".product-only").forEach((node) => node.classList.toggle("hidden", developer));
+  if (!developer) {
+    $("#research-view").classList.toggle("hidden", mode !== "research");
+    $("#chat-view").classList.toggle("hidden", mode !== "chat");
+    $("#show-research-mode").classList.toggle("active", mode === "research");
+    $("#show-chat-mode").classList.toggle("active", mode === "chat");
+  }
+  document.body.dataset.mode = mode;
+  const labels = {research: "论文调研", chat: "智能问答", developer: "开发者控制台"};
+  if ($("#workspace-title")) $("#workspace-title").textContent = labels[mode] || "工作空间";
+  $$(".rail-item").forEach((node) => node.classList.remove("active"));
+  const activeNav = mode === "research" ? $("#show-research-mode") : mode === "chat" ? $("#show-chat-mode") : $("#show-developer-mode");
+  activeNav?.classList.add("active");
+  if (developer) loadBenchmarkCatalog();
+  if (mode === "chat") loadChatSessions();
+}
+
+function researchPayload(demo = false) {
+  return {
+    topic: demo ? "无源互调的神经网络抑制方法" : $("#task-topic").value.trim(),
+    retriever: $("#task-retriever").value,
+    output_language: $("#task-output-language").value,
+    run_mode: $("#task-run-mode").value,
+    generate_pdf: $("#task-generate-pdf").checked,
+    expected_keywords: demo ? [] : [$("#task-expected-keyword").value.trim()].filter(Boolean),
+    forbidden_keywords: demo ? [] : [$("#task-forbidden-keyword").value.trim()].filter(Boolean),
+  };
+}
+
+function renderResearchProgress(stage, failed = false) {
+  if (stage !== "created") return;
+  resetPipelineGraph();
+  setPipelineNodeStatus(
+    "request",
+    failed ? "failed" : "active",
+    failed ? "任务创建失败" : "正在提交并冻结运行配置",
+  );
+}
+
+function resetPipelineGraph() {
+  state.pipelineStatus = {};
+  state.activeInvocations = {};
+  state.artifactStatus = {};
+  state.runFinished = false;
+  state.hasStageTrace = false;
+  state.lastPdfUrl = "";
+  $("#open-article-pdf").disabled = true;
+  $("#pipeline-open-pdf").classList.add("hidden");
+  Object.keys(pipelineNodes).forEach((nodeId) => setPipelineNodeStatus(nodeId, "waiting", "尚未运行"));
+}
+
+function formatDuration(milliseconds) {
+  if (!Number.isFinite(milliseconds) || milliseconds < 0) return "-";
+  return milliseconds < 1000 ? `${Math.round(milliseconds)} ms` : `${(milliseconds / 1000).toFixed(2)} s`;
+}
+
+function formatPipelineTelemetry(trace = {}) {
+  const details = trace.details && typeof trace.details === "object" ? trace.details : {};
+  const usage = trace.usage || trace.token_usage || details.usage || {};
+  const durationMs = Number(trace.duration_ms ?? trace.latency_ms ?? details.duration_ms ?? details.latency_ms);
+  const promptTokens = Number(usage.prompt_tokens ?? usage.input_tokens ?? trace.prompt_tokens ?? details.prompt_tokens ?? 0);
+  const completionTokens = Number(usage.completion_tokens ?? usage.output_tokens ?? trace.completion_tokens ?? details.completion_tokens ?? 0);
+  const totalTokens = Number(usage.total_tokens ?? trace.total_tokens ?? details.total_tokens ?? (promptTokens + completionTokens));
+  const costUsd = Number(trace.cost_usd ?? details.cost_usd);
+  return {
+    input: trace.input ?? details.input,
+    activity: trace.operation ?? trace.activity ?? details.activity ?? trace.message,
+    output: trace.output_summary ?? trace.output ?? details.output,
+    durationMs: Number.isFinite(durationMs) ? durationMs : undefined,
+    promptTokens,
+    completionTokens,
+    totalTokens,
+    costUsd: Number.isFinite(Number(trace.estimated_cost)) ? Number(trace.estimated_cost) : Number.isFinite(costUsd) ? costUsd : undefined,
+    finishReason: trace.finish_reason ?? details.finish_reason,
+    errorType: trace.error_type ?? details.error_type,
+    error: trace.error?.message ?? trace.error_message ?? details.error?.message ?? details.error,
+  };
+}
+
+function setPipelineNodeStatus(nodeId, status, detail = "", telemetry = {}) {
+  const previous = state.pipelineStatus[nodeId] || {};
+  const now = performance.now();
+  const startedAt = status === "active" && previous.status !== "active" ? now : previous.startedAt;
+  const measuredDuration = status === "complete" || status === "failed"
+    ? telemetry.durationMs ?? (startedAt ? now - startedAt : previous.durationMs)
+    : telemetry.durationMs ?? previous.durationMs;
+  state.pipelineStatus[nodeId] = {
+    ...previous,
+    ...telemetry,
+    status,
+    startedAt,
+    durationMs: measuredDuration,
+    detail: detail || telemetry.activity || previous.detail || "",
+  };
+  const node = $(`.pipeline-node[data-node="${nodeId}"]`);
+  if (!node) return;
+  node.classList.remove("waiting", "active", "complete", "failed", "skipped");
+  node.classList.add(status);
+  node.querySelector("em").textContent = {waiting: "WAIT", active: "RUN", complete: "DONE", failed: "ERR", skipped: "SKIP"}[status] || status;
+  let time = node.querySelector(".node-time");
+  if ((status === "complete" || status === "failed") && Number.isFinite(measuredDuration)) {
+    if (!time) {
+      time = document.createElement("time");
+      time.className = "node-time";
+      node.appendChild(time);
+    }
+    time.textContent = formatDuration(measuredDuration);
+  } else {
+    time?.remove();
+  }
+  updatePipelineWires();
+  if (node.classList.contains("selected")) showPipelineNode(nodeId);
+}
+
+function initializePipelineGraph() {
+  $$(".pipeline-node").forEach((node) => node.addEventListener("click", () => showPipelineNode(node.dataset.node)));
+  drawPipelineWires();
+  resetPipelineGraph();
+  window.addEventListener("resize", drawPipelineWires);
+}
+
+function drawPipelineWires() {
+  const canvas = $("#pipeline-canvas");
+  const executionSvg = $("#pipeline-execution-wires");
+  const artifactSvg = $("#pipeline-artifact-wires");
+  if (!canvas || !executionSvg || !artifactSvg) return;
+  const canvasRect = canvas.getBoundingClientRect();
+  [executionSvg, artifactSvg].forEach((svg) => svg.setAttribute("viewBox", `0 0 ${canvasRect.width} ${canvasRect.height}`));
+  executionSvg.innerHTML = pipelineExecutionEdges.map(([from, to], index) => {
+    const source = $(`.pipeline-node[data-node="${from}"] .flow-out`);
+    const target = $(`.pipeline-node[data-node="${to}"] .flow-in`);
+    return source && target ? `<path class="execution-wire" data-from="${from}" data-to="${to}" d="${pipelineExecutionPath(source, target, canvasRect, `${from}-${to}`)}" />` : "";
+  }).join("");
+  artifactSvg.innerHTML = pipelineArtifactEdges.map((edge, index) => {
+    const sourcePort = edge.sourcePort || edge.port;
+    const targetPort = edge.targetPort || edge.port;
+    const source = $(`.pipeline-node[data-node="${edge.from}"] .output-port[data-port="${sourcePort}"] i`);
+    const target = $(`.pipeline-node[data-node="${edge.to}"] .input-port[data-port="${targetPort}"] i`);
+    if (!source || !target) return "";
+    const pathId = `artifact-path-${edge.id}`;
+    const route = pipelineArtifactRoute(source, target, canvasRect, index, edge.id);
+    return `<path id="${pathId}" class="artifact-wire" data-edge-id="${edge.id}" data-from="${edge.from}" data-to="${edge.to}" d="${route.path}" /><text class="artifact-label" data-label-x="${route.labelX}" data-label-y="${route.labelY}">${escapeHtml(edge.label)}</text>`;
+  }).join("");
+  positionArtifactLabels();
+  updatePipelineWires();
+}
+
+function pipelinePortPoints(sourceNode, targetNode, canvasRect) {
+  const source = sourceNode?.getBoundingClientRect();
+  const target = targetNode?.getBoundingClientRect();
+  if (!source || !target) return null;
+  return {
+    x1: source.left + source.width / 2 - canvasRect.left,
+    y1: source.top + source.height / 2 - canvasRect.top,
+    x2: target.left + target.width / 2 - canvasRect.left,
+    y2: target.top + target.height / 2 - canvasRect.top,
+  };
+}
+
+function pipelineExecutionPath(source, target, canvasRect, edgeId = "") {
+  const points = pipelinePortPoints(source, target, canvasRect);
+  if (!points) return "";
+  const hardRoute = pipelineHardRoutes.execution[edgeId];
+  if (hardRoute) return pipelineCoordinateRoute(points, canvasRect, hardRoute);
+  if (Math.abs(points.y1 - points.y2) < 24 && points.x2 > points.x1) {
+    const bend = Math.max(24, Math.min(48, (points.x2 - points.x1) * .42));
+    return `M ${points.x1} ${points.y1} C ${points.x1 + bend} ${points.y1}, ${points.x2 - bend} ${points.y2}, ${points.x2} ${points.y2}`;
+  }
+  return pipelineRowWrapPath(points, canvasRect);
+}
+
+function pipelineRowWrapPath(points, canvasRect) {
+  return pipelineCoordinateRoute(points, canvasRect, {right: 10, laneY: .44, left: 18});
+}
+
+function pipelineCoordinateRoute({x1, y1, x2, y2}, canvasRect, route) {
+  const rightX = canvasRect.width - route.right;
+  const laneY = canvasRect.height * route.laneY;
+  const approachX = route.left ?? Math.max(8, x2 - (route.approach || 72));
+  const radius = Math.max(3, Math.min(
+    12,
+    Math.abs(rightX - x1) / 2,
+    Math.abs(laneY - y1) / 3,
+    Math.abs(rightX - approachX) / 4,
+    Math.abs(y2 - laneY) / 3,
+    Math.abs(x2 - approachX) / 2,
+  ));
+  return [
+    `M ${x1} ${y1}`,
+    `L ${rightX - radius} ${y1}`,
+    `C ${rightX} ${y1}, ${rightX} ${y1}, ${rightX} ${y1 + radius}`,
+    `L ${rightX} ${laneY - radius}`,
+    `C ${rightX} ${laneY}, ${rightX} ${laneY}, ${rightX - radius} ${laneY}`,
+    `L ${approachX + radius} ${laneY}`,
+    `C ${approachX} ${laneY}, ${approachX} ${laneY}, ${approachX} ${laneY + radius}`,
+    `L ${approachX} ${y2 - radius}`,
+    `C ${approachX} ${y2}, ${approachX} ${y2}, ${approachX + radius} ${y2}`,
+    `L ${x2} ${y2}`,
+  ].join(" ");
+}
+
+function pipelineArtifactPath(source, target, canvasRect, offsetSeed = 0) {
+  return pipelineArtifactRoute(source, target, canvasRect, offsetSeed).path;
+}
+
+function pipelineArtifactRoute(source, target, canvasRect, offsetSeed = 0, edgeId = "") {
+  const points = pipelinePortPoints(source, target, canvasRect);
+  if (!points) return {path: "", labelX: 0, labelY: 0};
+  const sourceNode = source.closest(".pipeline-node")?.getBoundingClientRect();
+  const targetNode = target.closest(".pipeline-node")?.getBoundingClientRect();
+  if (!sourceNode || !targetNode) return {path: "", labelX: 0, labelY: 0};
+  const sameRow = Math.abs(sourceNode.top - targetNode.top) < 30;
+  const hardRoute = pipelineHardRoutes.artifacts[edgeId];
+  if (hardRoute) {
+    const laneY = canvasRect.height * hardRoute.laneY;
+    return {
+      path: pipelineCoordinateRoute(points, canvasRect, hardRoute),
+      labelX: hardRoute.approach ? points.x2 - hardRoute.approach - 96 : (points.x1 + points.x2) / 2,
+      labelY: laneY - 8,
+    };
+  }
+  const adjacent = sameRow && points.x2 > points.x1 && points.x2 - points.x1 < 180;
+  if (adjacent) {
+    const bend = Math.max(20, (points.x2 - points.x1) * .44);
+    return {
+      path: `M ${points.x1} ${points.y1} C ${points.x1 + bend} ${points.y1}, ${points.x2 - bend} ${points.y2}, ${points.x2} ${points.y2}`,
+      labelX: (points.x1 + points.x2) / 2,
+      labelY: Math.min(points.y1, points.y2) - 7,
+    };
+  }
+  const sourceBottom = sourceNode.bottom - canvasRect.top;
+  const targetTop = targetNode.top - canvasRect.top;
+  const laneOffset = artifactLaneOffset(offsetSeed);
+  const laneY = sameRow
+    ? Math.min(canvasRect.height - 12, sourceBottom + 16 + laneOffset)
+    : Math.min(targetTop - 14, sourceBottom + 16 + laneOffset);
+  const curve = 28;
+  const exitX = points.x1 + curve * 1.7;
+  const entryX = points.x2 - curve * 1.7;
+  const reverse = entryX < exitX;
+  const exitControlX = exitX + (reverse ? 18 : -18);
+  return {
+    path: `M ${points.x1} ${points.y1} C ${points.x1 + curve} ${points.y1}, ${exitControlX} ${laneY}, ${exitX} ${laneY} C ${exitX + (reverse ? -18 : 18)} ${laneY}, ${entryX - 18} ${laneY}, ${entryX} ${laneY} C ${entryX + 18} ${laneY}, ${points.x2 - curve} ${points.y2}, ${points.x2} ${points.y2}`,
+    labelX: (points.x1 + points.x2) / 2,
+    labelY: laneY - 7,
+  };
+}
+
+function artifactLaneOffset(offsetSeed) {
+  return Number(offsetSeed || 0) * 6;
+}
+
+function positionArtifactLabels() {
+  $$("#pipeline-artifact-wires .artifact-label").forEach((label) => {
+    label.setAttribute("x", label.dataset.labelX || "0");
+    label.setAttribute("y", label.dataset.labelY || "0");
+    label.setAttribute("text-anchor", "middle");
+  });
+}
+
+function updatePipelineWires() {
+  $$("#pipeline-execution-wires path").forEach((path) => {
+    const source = state.pipelineStatus[path.dataset.from]?.status || "waiting";
+    const target = state.pipelineStatus[path.dataset.to]?.status || "waiting";
+    path.className.baseVal = `execution-wire ${target === "active" ? "active" : source === "complete" && target === "complete" ? "complete" : target === "failed" ? "failed" : "waiting"}`;
+  });
+  $$("#pipeline-artifact-wires path").forEach((path) => {
+    const edge = pipelineArtifactEdges.find((item) => item.id === path.dataset.edgeId);
+    const sourceStatus = state.pipelineStatus[edge?.from]?.status || "waiting";
+    const storedStatus = state.artifactStatus[path.dataset.edgeId] || "waiting";
+    const status = storedStatus === "waiting" && sourceStatus === "active"
+      ? "active"
+      : storedStatus;
+    path.className.baseVal = `artifact-wire ${status}`;
+  });
+}
+
+function markArtifactsReady(stage, trace = {}) {
+  if (state.runFinished) return;
+  const artifactName = String(trace.artifact_name || trace.path || "").toLowerCase();
+  pipelineArtifactEdges.forEach((edge) => {
+    if (edge.from !== stage) return;
+    if (artifactName && !artifactName.includes(edge.label.toLowerCase().replace("storm_gen_", ""))) return;
+    if (state.artifactStatus[edge.id] !== "complete") state.artifactStatus[edge.id] = "active";
+  });
+  updatePipelineWires();
+}
+
+function markArtifactInputsActive(stage) {
+  pipelineArtifactEdges.forEach((edge) => {
+    if (edge.to === stage && state.artifactStatus[edge.id] !== "complete") {
+      state.artifactStatus[edge.id] = "active";
+    }
+  });
+  updatePipelineWires();
+}
+
+function completeArtifactInputs(stage) {
+  pipelineArtifactEdges.forEach((edge) => {
+    if (edge.to === stage && state.artifactStatus[edge.id] === "active") {
+      state.artifactStatus[edge.id] = "complete";
+    }
+  });
+  updatePipelineWires();
+}
+
+function settleArtifactStatuses() {
+  Object.keys(state.artifactStatus).forEach((edgeId) => {
+    if (state.artifactStatus[edgeId] === "active") state.artifactStatus[edgeId] = "complete";
+  });
+  updatePipelineWires();
+}
+
+function failActiveArtifactStatuses() {
+  state.runFinished = true;
+  Object.keys(state.artifactStatus).forEach((edgeId) => {
+    if (state.artifactStatus[edgeId] === "active") state.artifactStatus[edgeId] = "failed";
+  });
+  updatePipelineWires();
+}
+
+function showPipelineNode(nodeId) {
+  const definition = pipelineNodes[nodeId];
+  if (!definition) return;
+  $$(".pipeline-node").forEach((node) => node.classList.toggle("selected", node.dataset.node === nodeId));
+  const runtime = state.pipelineStatus[nodeId] || {status: "waiting", detail: "尚未运行"};
+  $("#pipeline-node-title").textContent = definition.title;
+  $("#pipeline-node-description").textContent = definition.description;
+  $("#pipeline-node-input").textContent = runtime.input ? JSON.stringify(runtime.input, null, 2) : definition.input;
+  $("#pipeline-node-activity").textContent = runtime.activity || runtime.detail || "等待运行";
+  $("#pipeline-node-output").textContent = runtime.output ? JSON.stringify(runtime.output, null, 2) : definition.output;
+  $("#pipeline-node-detail").textContent = runtime.detail || "等待 Trace 事件";
+  $("#pipeline-node-duration").textContent = formatDuration(runtime.durationMs);
+  $("#pipeline-node-tokens").textContent = runtime.totalTokens
+    ? `${runtime.totalTokens.toLocaleString()} (${runtime.promptTokens || 0} in / ${runtime.completionTokens || 0} out)`
+    : "-";
+  $("#pipeline-node-cost").textContent = Number.isFinite(runtime.costUsd) ? `$${runtime.costUsd.toFixed(6)}` : "-";
+  $("#pipeline-node-finish").textContent = runtime.finishReason || "-";
+  $("#pipeline-node-error").textContent = runtime.error
+    ? `${runtime.errorType ? `[${runtime.errorType}] ` : ""}${runtime.error}`
+    : "-";
+  $("#pipeline-node-status").textContent = runtime.status.toUpperCase();
+  $("#pipeline-node-status").className = runtime.status;
+  $("#pipeline-pdf-actions").classList.toggle("hidden", nodeId !== "deliver");
+  $("#pipeline-open-pdf").classList.toggle("hidden", !state.lastPdfUrl);
+  $("#pipeline-open-pdf").href = state.lastPdfUrl || "#";
+}
+
+function openResearchEventStream(taskId) {
+  state.researchEvents?.close();
+  const source = new EventSource(`${serviceBase()}/events?task_id=${encodeURIComponent(taskId)}`);
+  state.researchEvents = source;
+  source.addEventListener("task_status", (event) => {
+    const payload = JSON.parse(event.data || "{}");
+    if (payload.task_status === "running") {
+      if ((state.pipelineStatus.request?.status || "waiting") === "waiting") {
+        setPipelineNodeStatus("request", "active", `task ${taskId} 等待阶段 Trace`);
+      }
+    } else if (payload.task_status === "failed") {
+      failActiveArtifactStatuses();
+      const existingFailedNode = Object.keys(state.pipelineStatus).find(
+        (key) => state.pipelineStatus[key].status === "failed",
+      );
+      const active = Object.keys(state.pipelineStatus).find(
+        (key) => state.pipelineStatus[key].status === "active",
+      ) || "request";
+      if (!existingFailedNode) {
+        setPipelineNodeStatus(active, "failed", payload.error || "任务执行失败，请查看 Trace", {
+          errorType: "runtime_error",
+          error: payload.error || "任务执行失败",
+        });
+      }
+      source.close();
+      state.researchEvents = null;
+    } else if (payload.task_status === "succeeded") {
+      state.runFinished = true;
+      settleArtifactStatuses();
+      source.close();
+      state.researchEvents = null;
+    }
+  });
+  source.addEventListener("trace", (event) => applyPipelineTrace((JSON.parse(event.data || "{}")).trace || {}));
+}
+
+function applyPipelineTrace(trace) {
+  const eventName = String(trace.event || trace.node || "").toLowerCase();
+  const rawStage = String(trace.stage || "").toLowerCase();
+  const stage = pipelineStageAliases[rawStage] || rawStage;
+  const path = String(trace.path || "").toLowerCase();
+  const detail = trace.tool_name || trace.tool || trace.retriever || trace.path || eventName;
+  const telemetry = formatPipelineTelemetry(trace);
+  const invocationId = String(trace.invocation_id || "");
+  const activityKey = `${rawStage || stage}:${invocationId || "stage"}`;
+  if (eventName.startsWith("stage_")) state.hasStageTrace = true;
+  if (eventName === "stage_start" && pipelineNodes[stage]) {
+    markArtifactInputsActive(stage);
+    const active = state.activeInvocations[stage] || new Set();
+    active.add(activityKey);
+    state.activeInvocations[stage] = active;
+    setPipelineNodeStatus(stage, "active", trace.operation || detail, telemetry);
+    if (!state.runFinished) $("#research-current-activity").textContent = trace.operation || pipelineNodes[stage].title;
+  } else if (eventName === "stage_progress" && pipelineNodes[stage]) {
+    setPipelineNodeStatus(stage, "active", trace.operation || detail, telemetry);
+    if (!state.runFinished) $("#research-current-activity").textContent = trace.operation || pipelineNodes[stage].title;
+  } else if (eventName === "stage_end" && pipelineNodes[stage]) {
+    state.activeInvocations[stage]?.delete(activityKey);
+    const stillActive = (state.activeInvocations[stage]?.size || 0) > 0;
+    setPipelineNodeStatus(
+      stage,
+      stillActive ? "active" : "complete",
+      stillActive ? "仍有并发调用正在执行" : (trace.operation || "阶段完成"),
+      telemetry,
+    );
+    if (!stillActive) completeArtifactInputs(stage);
+    if (!stillActive) markArtifactsReady(stage, trace);
+  } else if (eventName === "stage_error" && pipelineNodes[stage]) {
+    state.activeInvocations[stage]?.delete(activityKey);
+    setPipelineNodeStatus(stage, "failed", trace.operation || trace.error_message || "阶段失败", telemetry);
+    markDownstreamSkipped(stage);
+    if (!state.runFinished) $("#research-current-activity").textContent = trace.error_message || "阶段执行失败";
+  } else if (eventName === "stage_usage" && pipelineNodes[stage]) {
+    const status = state.pipelineStatus[stage]?.status || "complete";
+    setPipelineNodeStatus(stage, status, trace.operation || "用量已汇总", telemetry);
+  } else if (eventName === "artifact_ready" || eventName === "artifact_written") {
+    if (pipelineNodes[stage]) markArtifactsReady(stage, trace);
+  } else if (eventName === "run_start") {
+    setPipelineNodeStatus("request", "active", "运行配置已冻结，正在初始化", telemetry);
+  } else if (!state.hasStageTrace && (eventName.includes("retrieval_start") || eventName === "tool_start")) {
+    if (!state.pipelineStatus.retrieval || state.pipelineStatus.retrieval.status === "waiting") {
+      setPipelineNodeStatus("retrieval", "active", detail, telemetry);
+    }
+  } else if (!state.hasStageTrace && (eventName.includes("retrieval_end") || eventName === "tool_end")) {
+    setPipelineNodeStatus("retrieval", "complete", detail, telemetry);
+    setPipelineNodeStatus("evidence", "active", "整理证据与访谈记录");
+  } else if (!state.hasStageTrace && eventName === "artifact_written" && path.includes("outline")) {
+    setPipelineNodeStatus("evidence", "complete", "研究对话与信息表已建立");
+    setPipelineNodeStatus("outline", "complete", detail, telemetry);
+    setPipelineNodeStatus("writer", "active", "按章节生成内容");
+  } else if (!state.hasStageTrace && eventName === "artifact_written" && path.includes("article_polished")) {
+    setPipelineNodeStatus("writer", "complete", "文章草稿已生成");
+    setPipelineNodeStatus("polish", "complete", detail, telemetry);
+    setPipelineNodeStatus("evaluate", "active", "检查引用与质量指标");
+  } else if (!state.hasStageTrace && eventName === "artifact_written" && path.includes("article")) {
+    setPipelineNodeStatus("writer", "complete", detail, telemetry);
+    setPipelineNodeStatus("polish", "active", "去重并统一结构");
+  } else if (eventName === "run_end") {
+    if (trace.success === false) {
+      failActiveArtifactStatuses();
+      const existingFailedNode = Object.keys(state.pipelineStatus).find(
+        (nodeId) => state.pipelineStatus[nodeId]?.status === "failed",
+      );
+      if (existingFailedNode) return;
+      const activeNode = Object.keys(state.pipelineStatus).find((nodeId) => state.pipelineStatus[nodeId]?.status === "active") || "request";
+      setPipelineNodeStatus(activeNode, "failed", trace.error || "任务失败", telemetry);
+      markDownstreamSkipped(activeNode);
+    } else {
+      state.runFinished = true;
+      settleArtifactStatuses();
+    }
+  }
+}
+
+function markDownstreamSkipped(failedStage) {
+  const order = ["request", "retrieval", "evidence", "outline", "writer", "polish", "evaluate", "deliver"];
+  const failedIndex = order.indexOf(failedStage);
+  order.slice(failedIndex + 1).forEach((nodeId) => {
+    if ((state.pipelineStatus[nodeId]?.status || "waiting") === "waiting") {
+      setPipelineNodeStatus(nodeId, "skipped", "上游阶段失败，未执行");
+    }
+  });
+}
+
+async function runResearchWorkflow(demo = false) {
+  const payload = researchPayload(demo);
+  if (!payload.topic) return toast("请输入调研主题", "error");
+  const button = demo ? $("#start-research-demo") : $("#start-research-workflow");
+  button.disabled = true;
+  button.textContent = "正在调研";
+  $("#research-current-activity").textContent = "正在创建调研任务...";
+  renderResearchProgress("created");
+  try {
+    const task = await fetchJson("/research-tasks", {method: "POST", body: JSON.stringify(payload)});
+    state.researchTaskId = task.task_id;
+    $("#research-task-id").textContent = task.task_id;
+    openResearchEventStream(task.task_id);
+    $("#research-current-activity").textContent = "任务已提交，等待后端阶段 Trace...";
+    const completed = await fetchJson(`/research-tasks/${encodeURIComponent(task.task_id)}/run`, {method: "POST"});
+    if (completed.status !== "succeeded") throw new Error(completed.error || `任务状态：${completed.status}`);
+    state.runFinished = true;
+    settleArtifactStatuses();
+    $("#research-current-activity").textContent = "调研完成，文章、评分与引用已更新。";
+    await loadResearchResult(task.task_id);
+    toast("调研任务已完成");
+  } catch (error) {
+    const active = Object.keys(state.pipelineStatus).find((nodeId) => state.pipelineStatus[nodeId]?.status === "active");
+    if (active && state.pipelineStatus[active]?.status !== "failed") {
+      setPipelineNodeStatus(active, "failed", error.message, {errorType: "request_error", error: error.message});
+      markDownstreamSkipped(active);
+    }
+    $("#research-current-activity").textContent = error.message;
+    toast(error.message, "error");
+  } finally {
+    button.disabled = false;
+    button.textContent = demo ? "运行示例主题" : "开始调研";
+  }
+}
+
+async function loadResearchResult(taskId) {
+  const [article, scorecard, dashboard] = await Promise.all([
+    fetchJson(`/research-tasks/${encodeURIComponent(taskId)}/article`),
+    fetchJson(`/research-tasks/${encodeURIComponent(taskId)}/scorecard`),
+    fetchJson(`/research-tasks/${encodeURIComponent(taskId)}/dashboard`),
+  ]);
+  renderResearchArticle(article.content || "");
+  state.lastArticle = article.content || "";
+  $("#download-article-md").disabled = !state.lastArticle;
+  renderMetricGrid($("#scorecard"), scorecard, 8);
+  $("#research-score-section").classList.toggle("hidden", !Object.keys(scorecard).length);
+  updatePdfArtifact(dashboard.artifacts?.pdf || {});
+}
+
+function updatePdfArtifact(pdf = {}) {
+  state.lastPdfUrl = pdf.status === "ready" && pdf.url
+    ? `${serviceBase()}${pdf.url}`
+    : "";
+  $("#open-article-pdf").disabled = !state.lastPdfUrl;
+  $("#pipeline-open-pdf").classList.toggle("hidden", !state.lastPdfUrl);
+  $("#pipeline-open-pdf").href = state.lastPdfUrl || "#";
+  if (pdf.status === "failed") {
+    setPipelineNodeStatus("deliver", "failed", pdf.error_message || "PDF 生成失败", {
+      errorType: pdf.error_type || "pdf_render_error",
+      error: pdf.error_message || "PDF 生成失败",
+      output: {markdown: "ready", pdf: "failed"},
+    });
+  } else if (pdf.status === "ready") {
+    setPipelineNodeStatus("deliver", "complete", `PDF 已生成 · ${pdf.page_count || "-"} 页`, {
+      output: {
+        markdown: "ready",
+        pdf: "paperpilot_report.pdf",
+        page_count: pdf.page_count,
+        size_bytes: pdf.size_bytes,
+      },
+    });
+  }
+}
+
+function renderResearchArticle(content) {
+  const container = $("#article-content");
+  container.innerHTML = "";
+  if (!content.trim()) {
+    container.textContent = "任务完成，但没有生成文章。";
+    return;
+  }
+  let paragraphIndex = 0;
+  content.split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean).forEach((block) => {
+    if (block.startsWith("#")) {
+      const level = Math.min(4, Math.max(2, (block.match(/^#+/) || ["##"])[0].length + 1));
+      const heading = document.createElement(`h${level}`);
+      heading.textContent = block.replace(/^#+\s*/, "");
+      container.appendChild(heading);
+      return;
+    }
+    paragraphIndex += 1;
+    const paragraph = document.createElement("p");
+    paragraph.id = `article-paragraph-${paragraphIndex}`;
+    paragraph.dataset.articleAnchor = paragraph.id;
+    paragraph.textContent = block;
+    container.appendChild(paragraph);
+  });
+}
+
+async function focusArticleCitation(anchor, taskId) {
+  if (taskId && state.researchTaskId !== taskId) {
+    state.researchTaskId = taskId;
+    await loadResearchResult(taskId);
+  }
+  setMode("research");
+  const target = document.getElementById(anchor);
+  if (!target) return toast("未找到对应文章段落", "error");
+  $$("#article-content .citation-target").forEach((node) => node.classList.remove("citation-target"));
+  target.classList.add("citation-target");
+  target.scrollIntoView({behavior: "smooth", block: "center"});
+  window.setTimeout(() => target.classList.remove("citation-target"), 3200);
+}
+
+async function loadChatSessions() {
+  try {
+    state.chatSessions = await fetchJson("/chat/sessions?limit=50");
+    renderChatSessions();
+  } catch (error) {
+    toast(error.message, "error");
+  }
+}
+
+function renderChatSessions() {
+  const container = $("#chat-session-list");
+  if (!state.chatSessions.length) {
+    container.innerHTML = '<p class="empty-state">暂无历史会话。</p>';
+    return;
+  }
+  container.innerHTML = state.chatSessions.map((session) => `
+    <button class="session-item ${state.chatId === session.chat_id ? "active" : ""}" data-chat-id="${escapeHtml(session.chat_id)}" type="button">
+      <strong>${escapeHtml(session.title || "PaperPilot Chat")}</strong>
+      <span>${session.message_count} 条消息 · ${escapeHtml(session.run_mode)} / ${escapeHtml(session.retriever)}</span>
+      <small>${escapeHtml(session.last_preview || "无消息")}</small>
+    </button>
+  `).join("");
+  $$(".session-item").forEach((item) => {
+    item.addEventListener("click", () => loadChatSession(item.dataset.chatId));
+  });
+}
+
+async function loadChatSession(chatId) {
+  try {
+    const session = await fetchJson(`/chat/sessions/${encodeURIComponent(chatId)}`);
+    state.chatId = session.chat_id;
+    $("#chat-session-id").textContent = session.chat_id;
+    $("#chat-context-summary").textContent = "等待消息";
+    renderChatMessages(session.messages || []);
+    renderChatSessions();
+  } catch (error) {
+    toast(error.message, "error");
+  }
+}
+
+async function createChat() {
+  const button = $("#create-chat");
+  button.disabled = true;
+  try {
+    const session = await fetchJson("/chat/sessions", {
+      method: "POST",
+      body: JSON.stringify({
+        title: "PaperPilot chat",
+        topic: $("#task-topic").value.trim(),
+        run_mode: $("#chat-run-mode").value,
+        retriever: $("#chat-retriever").value,
+        memory_retrieval_mode: $("#chat-memory-mode").value,
+        output_language: "zh",
+        memory_enabled: true,
+      }),
+    });
+    state.chatId = session.chat_id;
+    $("#chat-session-id").textContent = session.chat_id;
+    $("#chat-messages").innerHTML = "";
+    renderChatMessages(session.messages || []);
+    loadChatSessions();
+    toast("新会话已创建");
+  } catch (error) {
+    toast(error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function sendChat(event) {
+  event.preventDefault();
+  const message = $("#chat-input").value.trim();
+  if (!message) return;
+  if (!state.chatId) await createChat();
+  if (!state.chatId) return;
+  $("#chat-input").value = "";
+  appendMessage("user", message);
+  const button = $("#send-chat");
+  button.disabled = true;
+  button.textContent = "思考中";
+  $("#stop-chat").classList.remove("hidden");
+  $("#regenerate-chat").disabled = true;
+  state.chatController = new AbortController();
+  try {
+    const result = await fetchJson(`/chat/sessions/${encodeURIComponent(state.chatId)}/messages`, {
+      method: "POST",
+      body: JSON.stringify({message}),
+      signal: state.chatController.signal,
+    });
+    renderChatMessages(result.messages || []);
+    const context = result.context || result.context_meter || {};
+    $("#chat-context-summary").textContent = context.input_tokens
+      ? `${context.input_tokens} tokens · ${context.compacted ? "已压缩" : "未压缩"}`
+      : `${(result.messages || []).length} 条消息`;
+    $("#regenerate-chat").disabled = !((result.messages || []).at(-1)?.role === "assistant");
+    loadChatSessions();
+  } catch (error) {
+    if (error.name === "AbortError") {
+      appendMessage("assistant", "已停止生成。");
+    } else {
+      appendMessage("assistant", `请求失败：${error.message}`);
+    }
+  } finally {
+    state.chatController = null;
+    $("#stop-chat").classList.add("hidden");
+    button.disabled = false;
+    button.textContent = "发送";
+  }
+}
+
+async function stopChat() {
+  if (state.chatController) state.chatController.abort();
+  if (state.chatId) {
+    try {
+      await fetchJson(`/chat/sessions/${encodeURIComponent(state.chatId)}/stop`, {method: "POST"});
+    } catch (_error) {
+      // stop is best-effort; the UI already aborted the request
+    }
+  }
+  $("#stop-chat").classList.add("hidden");
+  toast("已停止生成");
+}
+
+async function regenerateChat() {
+  if (!state.chatId) return;
+  const button = $("#regenerate-chat");
+  button.disabled = true;
+  try {
+    const result = await fetchJson(`/chat/sessions/${encodeURIComponent(state.chatId)}/regenerate`, {method: "POST"});
+    renderChatMessages(result.messages || []);
+    toast(result.regenerated ? "已生成新版本回答" : "重新生成完成");
+    loadChatSessions();
+  } catch (error) {
+    toast(error.message, "error");
+  } finally {
+    const messages = $("#chat-messages").querySelectorAll(".message");
+    button.disabled = !(messages.length && messages[messages.length - 1].classList.contains("assistant"));
+  }
+}
+
+function renderMessageNode(message) {
+  const node = document.createElement("div");
+  const role = message.role === "user" ? "user" : "assistant";
+  node.className = `message ${role}`;
+  const metadata = message.metadata || {};
+  const telemetry = metadata.telemetry || {};
+  const version = metadata.version ? ` <span class="version-badge">v${escapeHtml(metadata.version)}</span>` : "";
+  const regenerated = metadata.regenerated ? " <span class=\"version-badge\">重新生成</span>" : "";
+  let citationsHtml = "";
+  const citations = Array.isArray(metadata.citations) ? metadata.citations : [];
+  if (citations.length) {
+    const items = citations.map((citation) => {
+      const title = escapeHtml(citation.title || citation.name || "未命名来源");
+      const url = citation.url || "";
+      const page = citation.page ? ` · 第 ${escapeHtml(citation.page)} 页` : "";
+      const chunk = citation.chunk ? ` · ${escapeHtml(citation.chunk)}` : "";
+      const authors = Array.isArray(citation.authors) ? citation.authors.filter(Boolean) : [];
+      const authorText = authors.length ? `<small class="citation-authors">${escapeHtml(authors.join(", "))}</small>` : "";
+      const originalSources = Array.isArray(citation.original_sources) ? citation.original_sources : [];
+      const articleLink = citation.article_anchor
+        ? `<button class="citation-locator" type="button" data-article-anchor="${escapeHtml(citation.article_anchor)}" data-task-id="${escapeHtml(metadata.used_task_id || "")}">定位文章</button>`
+        : "";
+      const source = url
+        ? `<span class="citation-source"><a href="${escapeHtml(url)}" target="_blank" rel="noopener">${title}</a>${authorText}</span>`
+        : articleLink ? `<span class="citation-title">${title}</span>` : `<span class="citation-title">${title}</span><b class="missing-badge">无可用链接</b>`;
+      const originals = originalSources.length ? `<ul class="original-sources">${originalSources.map((item) => {
+        const sourceTitle = escapeHtml(item.title || `来源 ${item.citation_index || ""}`);
+        const sourceUrl = item.url || "";
+        const sourceAuthors = Array.isArray(item.authors) && item.authors.length ? `<small>${escapeHtml(item.authors.join(", "))}</small>` : "";
+        return `<li><span>[${escapeHtml(item.citation_index || "-")}]</span><span>${sourceUrl ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener">${sourceTitle}</a>` : sourceTitle}${sourceAuthors}</span></li>`;
+      }).join("")}</ul>` : "";
+      return `<li><div class="citation-row">${source}${articleLink}${page}${chunk}</div>${originals}</li>`;
+    }).join("");
+    citationsHtml = `<details class="citations"><summary>引用 ${citations.length} 条</summary><ul>${items}</ul></details>`;
+  }
+  const metricPrefix = telemetry.estimated ? "≈" : "";
+  const usageKind = telemetry.estimated ? "估算用量" : "真实用量";
+  const durationText = telemetry.duration_ms === null || telemetry.duration_ms === undefined
+    ? "耗时未记录"
+    : formatDuration(Number(telemetry.duration_ms));
+  const metricHtml = role === "user"
+    ? (telemetry.message_tokens ? `<span class="message-usage message-telemetry">输入 ${metricPrefix}${escapeHtml(telemetry.message_tokens)} tokens · ${usageKind}</span>` : "")
+    : ((telemetry.total_tokens || telemetry.duration_ms !== undefined)
+      ? `<span class="message-usage message-telemetry">输入 ${metricPrefix}${escapeHtml(telemetry.prompt_tokens || 0)} · 输出 ${metricPrefix}${escapeHtml(telemetry.completion_tokens || 0)} · 总计 ${metricPrefix}${escapeHtml(telemetry.total_tokens || (Number(telemetry.prompt_tokens || 0) + Number(telemetry.completion_tokens || 0)))} tokens · ${durationText} · ${usageKind}</span>`
+      : "");
+  const avatar = role === "user" ? "/dashboard/assets/avatar-user.svg" : "/dashboard/assets/avatar-paperpilot.svg";
+  node.innerHTML = `<img class="message-avatar" src="${avatar}" alt="" /><div class="message-body"><div class="message-head"><strong>${role === "user" ? "你" : "PaperPilot"}${version}${regenerated}</strong></div><p>${escapeHtml(message.content)}</p>${citationsHtml}${metricHtml}</div>`;
+  node.querySelectorAll("[data-article-anchor]").forEach((button) => {
+    button.addEventListener("click", () => focusArticleCitation(button.dataset.articleAnchor, button.dataset.taskId));
+  });
+  return node;
+}
+
+function renderChatMessages(messages) {
+  const container = $("#chat-messages");
+  container.innerHTML = "";
+  if (!messages.length) {
+    appendMessage("assistant", "会话已创建。你可以直接聊天，也可以提出需要论文证据的问题。");
+    return;
+  }
+  messages.forEach((message) => {
+    container.appendChild(renderMessageNode(message));
+  });
+  container.scrollTop = container.scrollHeight;
+}
+
+function appendMessage(role, content) {
+  const container = $("#chat-messages");
+  container.appendChild(renderMessageNode({role, content, metadata: {}}));
+  container.scrollTop = container.scrollHeight;
+}
+
+function downloadArticleMarkdown() {
+  if (!state.lastArticle) return;
+  const blob = new Blob([state.lastArticle], {type: "text/markdown;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `paperpilot-${state.researchTaskId || "research"}.md`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+  toast("Markdown 已下载");
+}
+
+function openArticlePdf() {
+  if (!state.lastPdfUrl) return toast("当前任务没有可用的 PDF", "error");
+  window.open(state.lastPdfUrl, "_blank", "noopener");
+}
+
+async function loadBenchmarkCatalog() {
+  setServiceState("", "连接中");
+  try {
+    const [catalog, observability] = await Promise.all([
+      fetchJson("/benchmarks/catalog"),
+      fetchJson("/observability/status"),
+    ]);
+    state.catalog = catalog;
+    setServiceState("online", "服务在线");
+    renderBenchmarkReadiness(state.catalog);
+    renderObservabilityStatus(observability);
+    renderBenchmarkCatalog(state.catalog.benchmarks || []);
+    if (state.selectedBenchmark) {
+      const updated = state.catalog.benchmarks.find((item) => item.id === state.selectedBenchmark.id);
+      if (updated) selectBenchmark(updated.id);
+    }
+  } catch (error) {
+    setServiceState("offline", "服务不可用");
+    $("#ready-service").textContent = "连接失败";
+    $("#ready-service-detail").textContent = error.message;
+    $("#benchmark-catalog").innerHTML = `<p class="empty-state">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function renderObservabilityStatus(status) {
+  const labels = {
+    configured: "已配置",
+    degraded: "降级",
+    unavailable: "SDK 缺失",
+    "local-only": "本地模式",
+  };
+  $("#ready-langfuse").textContent = labels[status.status] || status.status || "未知";
+  $("#ready-langfuse-detail").textContent = status.remote_enabled
+    ? `${status.environment} · failures ${status.export_failures || 0}`
+    : "设置 PAPERPILOT_OBSERVABILITY=langfuse";
+}
+
+function renderBenchmarkReadiness(catalog) {
+  const benchmarks = catalog.benchmarks || [];
+  const ready = benchmarks.filter((item) => item.ready).length;
+  $("#ready-service").textContent = "API 正常";
+  $("#ready-service-detail").textContent = `${benchmarks.length} 个 Registry 条目`;
+  $("#ready-root").textContent = catalog.benchmark_root ? "已发现" : "未发现";
+  $("#ready-root-detail").textContent = catalog.benchmark_root || "设置 PAPERPILOT_BENCHMARK_ROOT";
+  $("#ready-datasets").textContent = `${ready} / ${benchmarks.length}`;
+  $("#ready-python").textContent = (catalog.python || "未知").split(/[\\/]/).pop();
+  $("#ready-model-cache").textContent = catalog.model_cache || "模型缓存未配置";
+}
+
+function milestoneValue(value) {
+  return value === null || value === undefined || value === "" ? "未提供" : value;
+}
+
+function renderMilestoneProgress() {
+  const selected = MILESTONE_PROGRESS.find((item) => item.id === selectedMilestoneId) || MILESTONE_PROGRESS.at(-1);
+  $("#milestone-progress").innerHTML = MILESTONE_PROGRESS.map((item, index) => `
+    <button class="milestone-card ${item.id === selected.id ? "selected" : ""} ${item.status}" data-milestone-id="${item.id}" type="button">
+      <span>${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.status)}</small>
+    </button>
+  `).join("");
+  $("#milestone-progress").querySelectorAll("[data-milestone-id]").forEach((card) => {
+    card.addEventListener("click", () => {
+      selectedMilestoneId = card.dataset.milestoneId;
+      renderMilestoneProgress();
+    });
+  });
+  $("#milestone-detail").querySelector(".milestone-detail-copy").innerHTML = `
+    <span>${escapeHtml(selected.status)}</span><h3>${escapeHtml(selected.title)}</h3><p>${escapeHtml(selected.summary)}</p>
+  `;
+  $("#milestone-benchmarks").innerHTML = selected.affected_benchmarks.map((name) => `<span>${escapeHtml(name)}</span>`).join("");
+  $("#case-before-top-k").textContent = milestoneValue(selected.case.before_top_k);
+  $("#case-after-top-k").textContent = milestoneValue(selected.case.after_top_k);
+  $("#case-failure-stage").textContent = milestoneValue(selected.case.failure_stage);
+  $("#case-trace").textContent = milestoneValue(selected.case.trace);
+  $("#case-citation").textContent = milestoneValue(selected.case.citation);
+}
+
+function renderBenchmarkCatalog(benchmarks) {
+  $("#benchmark-catalog").innerHTML = benchmarks.map((item) => `
+    <article class="benchmark-card ${item.ready ? "" : "blocked"} ${state.selectedBenchmark?.id === item.id ? "selected" : ""}" data-benchmark-id="${escapeHtml(item.id)}" data-kind="${benchmarkKind(item)}" tabindex="0">
+      <div class="card-meta"><span>${escapeHtml(item.version)} · ${escapeHtml(item.category)}</span><span class="readiness-badge ${item.ready ? "" : "blocked"}">${item.ready ? "READY" : "BLOCKED"}</span></div>
+      <h3>${escapeHtml(item.name)}</h3>
+      <p>${escapeHtml(item.description)}</p>
+      <footer><span>${escapeHtml(item.evidence_tier)}</span><span>${item.latest_result_path ? "已有正式结果" : "暂无结果"}</span></footer>
+    </article>
+  `).join("");
+  $$(".benchmark-card").forEach((card) => {
+    card.addEventListener("click", () => selectBenchmark(card.dataset.benchmarkId));
+    card.addEventListener("keydown", (event) => { if (event.key === "Enter") selectBenchmark(card.dataset.benchmarkId); });
+  });
+}
+
+function benchmarkKind(item) {
+  const value = `${item.id} ${item.category}`.toLowerCase();
+  if (value.includes("memory") || value.includes("longmem")) return "MEM";
+  if (value.includes("context") || value.includes("longbench")) return "CTX";
+  if (value.includes("answer")) return "F1";
+  return "RAG";
+}
+
+function selectBenchmark(benchmarkId) {
+  const item = state.catalog?.benchmarks?.find((entry) => entry.id === benchmarkId);
+  if (!item) return;
+  state.selectedBenchmark = item;
+  renderBenchmarkCatalog(state.catalog.benchmarks);
+  $("#benchmark-selected-name").textContent = item.name;
+  $("#benchmark-selected-description").textContent = `${item.description} ${item.estimated_time}`;
+  $("#benchmark-evidence-tier").textContent = item.evidence_tier;
+  $("#paid-confirm-row").classList.toggle("hidden", !item.requires_llm);
+  $("#benchmark-input-manifest").innerHTML = item.inputs.map((input) => `
+    <div class="input-row"><span>${escapeHtml(input.key)}</span><code title="${escapeHtml(input.path)}">${escapeHtml(input.path || "未发现")}</code><b class="${input.available ? "" : "missing"}">${input.available ? "READY" : "MISSING"}</b></div>
+  `).join("");
+  $("#benchmark-command-preview").textContent = buildBenchmarkPreview(item, $("#benchmark-profile").value);
+  $("#start-benchmark-run").disabled = !item.ready;
+  $("#benchmark-limitations").innerHTML = item.blocker
+    ? `<li>${escapeHtml(item.blocker)}</li>`
+    : `<li>${escapeHtml(item.estimated_time)}</li><li>延迟是本机参考值，不等同于线上 SLA。</li><li>${item.requires_llm ? "该实验会产生真实 LLM API 成本。" : "该实验默认不调用真实 LLM。"}</li>`;
+  renderBenchmarkResult(item.latest_result || {}, item.latest_result_path || "");
+}
+
+function buildBenchmarkPreview(item, profile) {
+  const paths = Object.fromEntries(item.inputs.map((input) => [input.key, input.path || `<${input.key}>`]));
+  const output = "<service-root>/benchmark_runs/<run-id>/artifacts";
+  const commands = {
+    "scifact-retrieval": `python examples/storm_examples/run_paperpilot_public_benchmark.py --benchmark scifact --dataset-dir "${paths.scifact_dir}" --output-dir "${output}" --embedding ${profile === "smoke" ? "hash --smoke-limit 20" : "real --reranker"}`,
+    "qasper-retrieval": `python examples/storm_examples/run_paperpilot_public_benchmark.py --benchmark qasper --dataset-dir "${paths.qasper_json}" --output-dir "${output}" --embedding ${profile === "smoke" ? "hash --smoke-limit 20" : "real --reranker"}`,
+    "qasper-answer": `python examples/storm_examples/run_qasper_answer_benchmark.py --split test --retrieval-predictions "${paths.qasper_rankings}" --output-dir "${output}"${profile === "smoke" ? " --smoke-limit 10" : ""}`,
+    "longmemeval-retrieval": `python examples/storm_examples/run_longmemeval_benchmark.py --dataset "${paths.longmemeval_json}" --output-dir "${output}" --embedding ${profile === "smoke" ? "hash --limit 10" : "sentence-transformer"}`,
+    "qasper-context": `python examples/storm_examples/run_qasper_context_benchmark.py --dataset "${paths.qasper_json}" --rankings "${paths.qasper_rankings}" --output-dir "${output}"`,
+    "pim-domain-pilot": `python examples/storm_examples/run_pim_domain_pilot.py --corpus "${paths.pim_corpus}" --cases "${paths.pim_cases}" --output-dir "${output}" --model-cache "${state.catalog?.model_cache || "<model-cache>"}" --top-k 5`,
+    "longbench-context": "Blocked: 先生成同模型 full/fixed/v5.6 配对预测。",
+  };
+  return commands[item.id] || "该任务不可运行";
+}
+
+async function startBenchmarkRun() {
+  const item = state.selectedBenchmark;
+  if (!item) return toast("请先选择 Benchmark", "error");
+  const allowPaid = $("#benchmark-allow-paid").checked;
+  if (item.requires_llm && !allowPaid) return toast("请先确认付费 LLM 成本", "error");
+  const button = $("#start-benchmark-run");
+  button.disabled = true;
+  try {
+    const run = await fetchJson("/benchmarks/runs", {
+      method: "POST",
+      body: JSON.stringify({benchmark_id: item.id, profile: $("#benchmark-profile").value, allow_paid_llm: allowPaid}),
+    });
+    state.benchmarkRun = run;
+    renderBenchmarkRun(run);
+    scheduleBenchmarkPoll();
+  } catch (error) {
+    button.disabled = !item.ready;
+    toast(error.message, "error");
+  }
+}
+
+function scheduleBenchmarkPoll() {
+  window.clearTimeout(state.benchmarkPoll);
+  state.benchmarkPoll = window.setTimeout(pollBenchmarkRun, 900);
+}
+
+async function pollBenchmarkRun() {
+  if (!state.benchmarkRun) return;
+  try {
+    const run = await fetchJson(`/benchmarks/runs/${encodeURIComponent(state.benchmarkRun.run_id)}`);
+    state.benchmarkRun = run;
+    renderBenchmarkRun(run);
+    if (run.status === "running") scheduleBenchmarkPoll();
+  } catch (error) {
+    toast(error.message, "error");
+  }
+}
+
+function renderBenchmarkRun(run) {
+  const status = run.status || "idle";
+  $("#benchmark-run-status").className = `run-status ${status}`;
+  $("#benchmark-run-status").textContent = status;
+  const progress = $("#benchmark-progress-dot").parentElement;
+  progress.className = `run-progress ${status}`;
+  $("#benchmark-progress-title").textContent = status === "running" ? "Benchmark 正在运行" : `运行${status === "succeeded" ? "完成" : "结束"}`;
+  $("#benchmark-progress-detail").textContent = `run ${run.run_id} · PID ${run.pid || "-"} · ${run.output_dir || ""}`;
+  $("#benchmark-log-tail").textContent = run.log_tail || "进程已启动，等待日志...";
+  $("#benchmark-command-preview").textContent = run.command_preview || $("#benchmark-command-preview").textContent;
+  $("#cancel-benchmark-run").disabled = status !== "running";
+  $("#start-benchmark-run").disabled = status === "running" || !state.selectedBenchmark?.ready;
+  if (run.result && Object.keys(run.result).length) renderBenchmarkResult(run.result, run.result_path);
+}
+
+async function cancelBenchmarkRun() {
+  if (!state.benchmarkRun) return;
+  try {
+    const run = await fetchJson(`/benchmarks/runs/${encodeURIComponent(state.benchmarkRun.run_id)}/cancel`, {method: "POST"});
+    state.benchmarkRun = run;
+    renderBenchmarkRun(run);
+    toast("Benchmark 已停止");
+  } catch (error) {
+    toast(error.message, "error");
+  }
+}
+
+function renderBenchmarkResult(result, resultPath = "") {
+  renderBenchmarkMetrics($("#benchmark-result-metrics"), result);
+  $("#benchmark-raw-result").textContent = JSON.stringify(result || {}, null, 2);
+  $("#benchmark-artifacts").innerHTML = resultPath
+    ? `<code>${escapeHtml(resultPath)}</code>`
+    : "尚无运行产物。";
+}
+
+function renderBenchmarkMetrics(container, result) {
+  const id = state.selectedBenchmark?.id || "";
+  let metrics = [];
+  if (id.endsWith("retrieval-v55")) {
+    const suffix = id.startsWith("scifact") ? "10" : "5";
+    const labels = {bm25: "BM25", dense: "Dense", hybrid: "Hybrid", hybrid_rerank: "Hybrid + Rerank"};
+    Object.entries(result.modes || {}).forEach(([mode, values]) => {
+      metrics.push([`${labels[mode] || mode} Recall@${suffix}`, values[`recall_at_${suffix}`]]);
+      metrics.push([`${labels[mode] || mode} nDCG@${suffix}`, values[`ndcg_at_${suffix}`]]);
+      metrics.push([`${labels[mode] || mode} P95`, values.p95_latency_ms, "ms"]);
+    });
+  } else if (id === "qasper-answer") {
+    const values = result.metrics || result;
+    metrics = [
+      ["Answer F1", values.answer_f1], ["Evidence F1", values.evidence_f1],
+      ["Exact Match", values.answer_exact_match], ["样本数", values.case_count || result.case_count],
+      ["成功预测", result.successful_predictions], ["失败预测", result.failed_predictions],
+    ];
+  } else if (id === "longmemeval-retrieval") {
+    const recent = result.modes?.recent_window || {};
+    const memory = result.modes?.paperpilot_memory || result.modes?.v56_memory || {};
+    metrics = [
+      ["样本数", result.case_count], ["Top K", result.top_k],
+      ["Recent Recall@5", recent.retrieval_recall_at_5],
+      ["PaperPilot Memory Recall@5", memory.retrieval_recall_at_5],
+      ["Memory P50", memory.p50_latency_ms, "ms"], ["Memory P95", memory.p95_latency_ms, "ms"],
+    ];
+  } else if (id === "qasper-context") {
+    metrics = [
+      ["样本数", result.case_count], ["输入上限", result.input_limit_tokens, "tokens"],
+      ["证据保留率", result.retrieved_evidence_retention],
+      ["压缩前 Gold Recall", result.gold_evidence_recall_before_context],
+      ["压缩后 Gold Recall", result.gold_evidence_recall_after_context],
+      ["Context / 全文", result.mean_context_to_full_document_ratio],
+      ["超预算率", result.over_budget_rate], ["结构校验通过率", result.validation_pass_rate],
+    ];
+  } else if (id === "pim-domain-pilot") {
+    const legacy = result.profiles?.["legacy-multilingual"]?.metrics || {};
+    const bge = result.profiles?.["cpu-zh"]?.metrics || {};
+    const gte = result.profiles?.["cpu-multilingual"]?.metrics || {};
+    const selected = result.selected_profile || "cpu-multilingual";
+    const best = result.profiles?.[selected]?.metrics || gte;
+    metrics = [
+      ["样本数", result.case_count],
+      ["PIM Legacy Recall@5", legacy.recall_at_5],
+      ["PIM BGE Recall@5", bge.recall_at_5],
+      ["PIM GTE Recall@5", gte.recall_at_5],
+      [`Best (${selected}) MRR@5`, best.mrr_at_5],
+      [`Best (${selected}) P95`, best.query_p95_ms, "ms"],
+      ["ANN Recall@5", result.ann?.hnsw_recall_at_k],
+      ["ANN P95", result.ann?.hnsw_p95_ms, "ms"],
+    ];
+  }
+  metrics = metrics.filter(([, value]) => typeof value === "number" && Number.isFinite(value));
+  if (!metrics.length) return renderMetricGrid(container, result, 12);
+  container.innerHTML = metrics.slice(0, 12).map(([label, value, unit = ""]) => `
+    <div class="metric"><small>${escapeHtml(label)}</small><strong>${escapeHtml(formatMetric(value))}${unit ? `<em>${escapeHtml(unit)}</em>` : ""}</strong></div>
+  `).join("");
+}
+
+function renderMetricGrid(container, value, limit = 10) {
+  const metrics = [];
+  collectMetrics(value, "", metrics);
+  container.innerHTML = metrics.slice(0, limit).map(([key, number]) => `
+    <div class="metric"><small>${escapeHtml(key)}</small><strong>${escapeHtml(formatMetric(number))}</strong></div>
+  `).join("") || '<p class="empty-state">暂无指标。</p>';
+}
+
+function collectMetrics(value, prefix, output) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    output.push([prefix || "value", value]);
+    return;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return;
+  Object.entries(value).forEach(([key, child]) => {
+    if (["predictions", "bad_cases", "rows"].includes(key)) return;
+    collectMetrics(child, prefix ? `${prefix}.${key}` : key, output);
+  });
+}
+
+function formatMetric(value) {
+  if (Number.isInteger(value)) return String(value);
+  return Math.abs(value) >= 100 ? value.toFixed(1) : value.toFixed(4);
+}
+
+async function refreshRuntimeDiagnostics() {
+  try {
+    const [production, tasks, observability] = await Promise.all([
+      fetchJson("/production/status"),
+      fetchJson("/research-tasks"),
+      fetchJson("/observability/status"),
+    ]);
+    $("#runtime-production-status").textContent = JSON.stringify(
+      {production, observability}, null, 2
+    );
+    const latest = (tasks.tasks || []).at(-1) || {};
+    $("#runtime-task-status").textContent = JSON.stringify(latest, null, 2);
+    if (latest.task_id) {
+      const trace = await fetchJson(`/research-tasks/${encodeURIComponent(latest.task_id)}/trace`);
+      $("#runtime-trace-status").textContent = JSON.stringify(trace, null, 2);
+    }
+  } catch (error) {
+    toast(error.message, "error");
+  }
+}
+
+async function copyBenchmarkCommand() {
+  try {
+    await navigator.clipboard.writeText($("#benchmark-command-preview").textContent);
+    toast("命令已复制");
+  } catch (_error) {
+    toast("浏览器未授予剪贴板权限", "error");
+  }
+}
+
+$("#show-developer-mode").addEventListener("click", () => setMode("developer"));
+$("#leave-developer-mode").addEventListener("click", () => setMode("research"));
+$("#show-research-mode").addEventListener("click", () => setMode("research"));
+$("#show-chat-mode").addEventListener("click", () => setMode("chat"));
+$("#start-research-demo").addEventListener("click", () => runResearchWorkflow(true));
+$("#start-research-workflow").addEventListener("click", () => runResearchWorkflow(false));
+$("#create-chat").addEventListener("click", createChat);
+$("#chat-form").addEventListener("submit", sendChat);
+$("#chat-input").addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+    event.preventDefault();
+    $("#chat-form").requestSubmit();
+  }
+});
+$("#refresh-chat-sessions").addEventListener("click", loadChatSessions);
+$("#regenerate-chat").addEventListener("click", regenerateChat);
+$("#stop-chat").addEventListener("click", stopChat);
+$("#download-article-md").addEventListener("click", downloadArticleMarkdown);
+$("#open-article-pdf").addEventListener("click", openArticlePdf);
+$("#refresh-benchmark-catalog").addEventListener("click", loadBenchmarkCatalog);
+$("#benchmark-profile").addEventListener("change", () => {
+  if (state.selectedBenchmark) selectBenchmark(state.selectedBenchmark.id);
+});
+$("#start-benchmark-run").addEventListener("click", startBenchmarkRun);
+$("#cancel-benchmark-run").addEventListener("click", cancelBenchmarkRun);
+$("#copy-benchmark-command").addEventListener("click", copyBenchmarkCommand);
+$("#refresh-runtime-diagnostics").addEventListener("click", refreshRuntimeDiagnostics);
+
+initializePipelineGraph();
+renderMilestoneProgress();
+loadBenchmarkCatalog();

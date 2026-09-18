@@ -1,0 +1,271 @@
+import os
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+
+@mock.patch.dict(
+    os.environ,
+    {
+        "PAPERPILOT_RETRIEVAL_EMBEDDING": "hash",
+        "PAPERPILOT_CHAT_LLM": "0",
+        "PAPERPILOT_JUDGE_LLM": "0",
+    },
+)
+class PaperPilotResearchQATest(unittest.TestCase):
+    def make_service(self):
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        from knowledge_storm.paperpilot_service import PaperPilotTaskService
+
+        return PaperPilotTaskService(root_dir=Path(temp_dir.name))
+
+    def test_ask_without_task_id_runs_research_then_answers(self):
+        service = self.make_service()
+
+        answer = service.ask_research_agent(
+            question="PIM 是什么，神经网络如何抑制它？",
+            topic="pim 神经网络抑制",
+            run_mode="fake",
+            expected_keywords=["passive intermodulation", "RF"],
+            forbidden_keywords=["DRAM", "RAM", "processing-in-memory"],
+        )
+
+        self.assertTrue(answer["retrieval_triggered"])
+        self.assertEqual(answer["decision"]["action"], "retrieve_then_answer")
+        self.assertEqual(answer["task_status"], "succeeded")
+        self.assertTrue(answer["used_task_id"])
+        self.assertTrue(answer["grounded"])
+        self.assertTrue(answer["citations"])
+        self.assertIn("passive intermodulation", answer["answer"])
+        self.assertTrue(answer["trace"])
+
+    def test_new_task_plans_followup_once_before_submit_and_reuses_plan_for_kb(self):
+        from knowledge_storm.search_planning import SearchPlanner
+
+        service = self.make_service()
+        history = [
+            {"role": "user", "content": "射频无源互调会造成什么影响？"},
+            {"role": "assistant", "content": "这里讨论的是 passive intermodulation。"},
+        ]
+        planner_calls = []
+        submitted_topics = []
+        original_plan = SearchPlanner.plan
+        original_submit = service.submit_research_task
+
+        def recording_plan(planner, query, *, history=None):
+            planner_calls.append((query, tuple(history or ())))
+            return original_plan(planner, query, history=history)
+
+        def recording_submit(*args, **kwargs):
+            submitted_topics.append(kwargs.get("topic", args[0] if args else ""))
+            return original_submit(*args, **kwargs)
+
+        with mock.patch.object(
+            SearchPlanner, "plan", autospec=True, side_effect=recording_plan
+        ), mock.patch.object(
+            service, "submit_research_task", side_effect=recording_submit
+        ):
+            answer = service.ask_research_agent(
+                question="那它如何抑制？",
+                topic="legacy session topic",
+                history=history,
+                run_mode="fake",
+                expected_keywords=["passive intermodulation"],
+            )
+
+        plan = answer["retrieval_metadata"]["search_plan"]
+        self.assertEqual(1, len(planner_calls))
+        self.assertEqual(tuple(history), planner_calls[0][1])
+        self.assertEqual("那它如何抑制？", plan["original_query"])
+        self.assertIn("passive intermodulation", plan["standalone_query"].lower())
+        self.assertEqual(plan["standalone_query"], submitted_topics[0])
+
+    def test_ask_with_finished_task_reuses_existing_knowledge_base(self):
+        service = self.make_service()
+        task = service.submit_research_task(
+            topic="pim 神经网络抑制",
+            run_mode="fake",
+            expected_keywords=["passive intermodulation"],
+            forbidden_keywords=["DRAM"],
+        )
+        service.run_task(task["task_id"])
+        before_count = len(service.list_tasks())
+
+        answer = service.ask_research_agent(
+            question="这次调研里 PIM 指什么？",
+            task_id=task["task_id"],
+        )
+
+        self.assertFalse(answer["retrieval_triggered"])
+        self.assertEqual(answer["decision"]["action"], "answer_from_existing_kb")
+        self.assertEqual(answer["used_task_id"], task["task_id"])
+        self.assertEqual(len(service.list_tasks()), before_count)
+        self.assertTrue(answer["grounded"])
+        self.assertTrue(answer["citations"])
+        self.assertEqual(answer["decision"]["action"], "answer_from_existing_kb")
+        self.assertTrue(answer["evidence_sufficiency"]["sufficient"])
+        self.assertGreaterEqual(answer["evidence_sufficiency"]["score"], 60)
+
+    def test_ask_with_finished_task_rejects_low_confidence_unrelated_question(self):
+        service = self.make_service()
+        task = service.submit_research_task(
+            topic="pim 神经网络抑制",
+            run_mode="fake",
+            expected_keywords=["passive intermodulation"],
+            forbidden_keywords=["DRAM"],
+        )
+        service.run_task(task["task_id"])
+        before_count = len(service.list_tasks())
+
+        answer = service.ask_research_agent(
+            question="Transformer 注意力机制和大语言模型训练有什么关系？",
+            task_id=task["task_id"],
+        )
+
+        self.assertFalse(answer["retrieval_triggered"])
+        self.assertEqual(answer["decision"]["action"], "reject_low_confidence")
+        self.assertFalse(answer["grounded"])
+        self.assertFalse(answer["evidence_sufficiency"]["sufficient"])
+        self.assertEqual(len(service.list_tasks()), before_count)
+
+    def test_evidence_sufficiency_records_forbidden_keyword_hits(self):
+        service = self.make_service()
+        task = service.submit_research_task(
+            topic="pim 神经网络抑制",
+            run_mode="fake",
+            expected_keywords=["passive intermodulation"],
+            forbidden_keywords=["DRAM", "processing-in-memory"],
+        )
+        service.run_task(task["task_id"])
+
+        answer = service.ask_research_agent(
+            question="这里为什么不能把 PIM 理解成 DRAM processing-in-memory？",
+            task_id=task["task_id"],
+        )
+
+        self.assertIn("DRAM", answer["evidence_sufficiency"]["forbidden_keyword_hits"])
+        self.assertIn(
+            "processing-in-memory",
+            answer["evidence_sufficiency"]["forbidden_keyword_hits"],
+        )
+        self.assertEqual(answer["decision"]["action"], "answer_from_existing_kb")
+
+    def test_evidence_sufficiency_rejects_off_topic_question(self):
+        from knowledge_storm.paperpilot_research_qa import evaluate_evidence_sufficiency
+
+        evidence = [
+            {
+                "title": "Generated article",
+                "content": "PIM 在本任务中指 passive intermodulation，是 RF 系统中由无源器件非线性导致的互调杂散问题。",
+                "score": 0.5,
+            },
+            {
+                "title": "Neural PIM",
+                "content": "RF passive intermodulation suppression with neural networks.",
+                "score": 0.4,
+            },
+        ]
+        citations = [{"id": 1}, {"id": 2}]
+        off_topic = evaluate_evidence_sufficiency(
+            question="muon优化器为什么效果好？",
+            evidence=evidence,
+            citations=citations,
+            topic="pim 神经网络抑制",
+            expected_keywords=["passive intermodulation"],
+            forbidden_keywords=["DRAM"],
+        )
+        self.assertFalse(off_topic["sufficient"])
+        self.assertEqual(off_topic["meaningful_overlap"], [])
+        related = evaluate_evidence_sufficiency(
+            question="PIM 是什么？",
+            evidence=evidence,
+            citations=citations,
+            topic="pim 神经网络抑制",
+            expected_keywords=["passive intermodulation"],
+            forbidden_keywords=["DRAM"],
+        )
+        self.assertTrue(related["sufficient"])
+        self.assertIn("pim", related["meaningful_overlap"])
+
+    def test_research_qa_persists_qa_history_for_followup(self):
+        service = self.make_service()
+        first = service.ask_research_agent(
+            question="PIM 是什么？",
+            topic="pim 神经网络抑制",
+            run_mode="fake",
+            expected_keywords=["passive intermodulation"],
+            forbidden_keywords=["DRAM"],
+        )
+        second = service.ask_research_agent(
+            question="那神经网络如何抑制它？",
+            task_id=first["used_task_id"],
+        )
+        state = service.get_task(first["used_task_id"])
+        history_path = Path(state["output_dir"]) / "qa_history.json"
+
+        self.assertTrue(history_path.exists())
+        self.assertEqual(second["qa_history_count"], 2)
+        self.assertTrue(second["qa_history"])
+        self.assertEqual(second["qa_history"][-1]["question"], "那神经网络如何抑制它？")
+
+    def test_fastapi_adapter_exposes_research_agent_ask(self):
+        from fastapi.testclient import TestClient
+
+        from examples.storm_examples.paperpilot_service_api import create_app
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = create_app(service_root=Path(temp_dir))
+            client = TestClient(app)
+
+            response = client.post(
+                "/research-agent/ask",
+                json={
+                    "question": "PIM 是什么？",
+                    "topic": "pim 神经网络抑制",
+                    "run_mode": "fake",
+                    "expected_keywords": ["passive intermodulation"],
+                    "forbidden_keywords": ["DRAM"],
+                },
+            )
+
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            self.assertTrue(payload["retrieval_triggered"])
+            self.assertEqual(payload["decision"]["action"], "retrieve_then_answer")
+            self.assertTrue(payload["citations"])
+
+    def test_retrieval_citation_preserves_original_title_and_authors(self):
+        from knowledge_storm.paperpilot_qa import PaperPilotKnowledgeBase
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            run_dir = Path(temp_dir)
+            (run_dir / "raw_search_results.json").write_text(
+                json.dumps([
+                    {
+                        "title": "Neural Cancellation of Passive Intermodulation",
+                        "description": "A radio-frequency cancellation method.",
+                        "snippets": ["passive intermodulation neural cancellation"],
+                        "url": "https://arxiv.org/abs/2601.00001",
+                        "meta": {
+                            "authors": ["Alice Zhang", "Bob Smith"],
+                            "published": "2026-01-01",
+                            "source_type": "arxiv",
+                        },
+                    }
+                ]),
+                encoding="utf-8",
+            )
+            kb = PaperPilotKnowledgeBase.from_run_dir(run_dir)
+            result = kb.answer_question("passive intermodulation cancellation", top_k=1)
+
+        citation = result["citations"][0]
+        self.assertEqual(citation["title"], "Neural Cancellation of Passive Intermodulation")
+        self.assertEqual(citation["authors"], ["Alice Zhang", "Bob Smith"])
+        self.assertEqual(citation["published"], "2026-01-01")
+
+
+if __name__ == "__main__":
+    unittest.main()

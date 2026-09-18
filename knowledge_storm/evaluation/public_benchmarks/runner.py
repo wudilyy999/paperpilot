@@ -1,4 +1,4 @@
-"""Shared PaperStorm retrieval runner for public datasets."""
+"""Shared PaperPilot retrieval runner for public datasets."""
 
 import hashlib
 import json
@@ -22,7 +22,7 @@ class HashEmbeddingProvider:
 
     def __init__(self, dim=128):
         self.dim = int(dim)
-        self.name = "paperstorm-hash-smoke-{0}".format(self.dim)
+        self.name = "paperpilot-hash-smoke-{0}".format(self.dim)
 
     def embed(self, texts):
         return [self.embed_query(text) for text in texts]

@@ -8,11 +8,11 @@ from pathlib import Path
 from knowledge_storm.evaluation.public_benchmarks.longbench_context import load_longbench_v2
 from knowledge_storm.evaluation.public_benchmarks.harness import run_context_profile_benchmark
 from knowledge_storm.evaluation.public_benchmarks.llm_reader import StreamingReader
-from knowledge_storm.paperstorm_router_llm import _load_flat_toml_env
+from knowledge_storm.paperpilot_router_llm import _load_flat_toml_env
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="PaperStorm context profile Pareto benchmark")
+    parser = argparse.ArgumentParser(description="PaperPilot context profile Pareto benchmark")
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--model", default="deepseek/deepseek-chat")

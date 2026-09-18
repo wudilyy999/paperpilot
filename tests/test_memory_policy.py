@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 
-class PaperStormMemoryV43Test(unittest.TestCase):
+class PaperPilotMemoryV43Test(unittest.TestCase):
     def make_service(self, temp_dir):
         from knowledge_storm.memory_policy import LongTermMemoryService
 
@@ -80,14 +80,14 @@ class PaperStormMemoryV43Test(unittest.TestCase):
             first = service.upsert(
                 namespace="user/alice",
                 memory_type="semantic",
-                subject="PaperStorm",
+                subject="PaperPilot",
                 content="PIM 指 passive intermodulation。",
                 canonical_key="term:pim",
             )
             second = service.upsert(
                 namespace="user/alice",
                 memory_type="semantic",
-                subject="PaperStorm",
+                subject="PaperPilot",
                 content="PIM 指 passive intermodulation。",
                 canonical_key="term:pim",
             )
@@ -102,7 +102,7 @@ class PaperStormMemoryV43Test(unittest.TestCase):
             target = service.upsert(
                 namespace="user/alice",
                 memory_type="semantic",
-                subject="PaperStorm",
+                subject="PaperPilot",
                 content="PIM 是射频无源互调 passive intermodulation。",
                 canonical_key="term:pim",
                 importance=0.9,
@@ -184,12 +184,12 @@ class PaperStormMemoryV43Test(unittest.TestCase):
             self.assertEqual(service.list_memories("user/alice"), [])
 
     def test_cross_session_chat_recall_uses_same_user_namespace(self):
-        from knowledge_storm.paperstorm_service import PaperStormTaskService
+        from knowledge_storm.paperpilot_service import PaperPilotTaskService
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            service = PaperStormTaskService(Path(temp_dir))
+            service = PaperPilotTaskService(Path(temp_dir))
             first = service.create_chat_session(
-                topic="PaperStorm",
+                topic="PaperPilot",
                 run_mode="fake",
                 user_id="alice",
             )
@@ -198,13 +198,13 @@ class PaperStormMemoryV43Test(unittest.TestCase):
                 "请记住：回答我时使用中文。",
             )
             second = service.create_chat_session(
-                topic="PaperStorm",
+                topic="PaperPilot",
                 run_mode="fake",
                 user_id="alice",
             )
             recalled = service.send_chat_message(second["chat_id"], "你记得我的回答偏好吗？")
             third = service.create_chat_session(
-                topic="PaperStorm",
+                topic="PaperPilot",
                 run_mode="fake",
                 user_id="bob",
             )
@@ -218,10 +218,10 @@ class PaperStormMemoryV43Test(unittest.TestCase):
             self.assertFalse(any("中文" in item["content"] for item in isolated["long_term_memory"]["results"]))
 
     def test_non_ascii_user_id_gets_stable_safe_namespace(self):
-        from knowledge_storm.paperstorm_service import PaperStormTaskService
+        from knowledge_storm.paperpilot_service import PaperPilotTaskService
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            service = PaperStormTaskService(Path(temp_dir))
+            service = PaperPilotTaskService(Path(temp_dir))
             first = service.create_chat_session(user_id="张三", run_mode="fake")
             second = service.create_chat_session(user_id="张三", run_mode="fake")
 
@@ -230,12 +230,12 @@ class PaperStormMemoryV43Test(unittest.TestCase):
 
     def test_runtime_memory_operations_emit_trace_events(self):
         from knowledge_storm.memory_policy import LongTermMemoryService
-        from knowledge_storm.paperstorm_runtime import PaperStormRuntimeSession
+        from knowledge_storm.paperpilot_runtime import PaperPilotRuntimeSession
 
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             memory = LongTermMemoryService(root / "memory")
-            runtime = PaperStormRuntimeSession(
+            runtime = PaperPilotRuntimeSession(
                 run_id="memory-runtime",
                 trace_path=root / "trace.jsonl",
                 long_term_memory=memory,
@@ -257,7 +257,7 @@ class PaperStormMemoryV43Test(unittest.TestCase):
             from fastapi.testclient import TestClient
         except Exception as exc:  # pragma: no cover - optional dependency
             self.skipTest(str(exc))
-        from examples.storm_examples.paperstorm_service_api import create_app
+        from examples.storm_examples.paperpilot_service_api import create_app
 
         with tempfile.TemporaryDirectory() as temp_dir:
             client = TestClient(create_app(service_root=Path(temp_dir)))
@@ -266,7 +266,7 @@ class PaperStormMemoryV43Test(unittest.TestCase):
                 json={
                     "namespace": "user/alice",
                     "memory_type": "semantic",
-                    "subject": "PaperStorm",
+                    "subject": "PaperPilot",
                     "content": "PIM 指 passive intermodulation。",
                     "canonical_key": "term:pim",
                 },

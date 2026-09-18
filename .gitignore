@@ -38,3 +38,9 @@ docs/dual-agent-projects-resume.md
 # 本地 Agent 配置与内部开发计划，不上传 GitHub
 .claude/
 docs/superpowers/
+
+# 本地环境配置
+.env
+.venv/
+__pycache__/
+*.pyc

@@ -32,12 +32,12 @@ class FlakyDeepResearchTool:
 @mock.patch.dict(
     os.environ,
     {
-        "PAPERSTORM_RETRIEVAL_EMBEDDING": "hash",
-        "PAPERSTORM_CHAT_LLM": "0",
-        "PAPERSTORM_JUDGE_LLM": "0",
+        "PAPERPILOT_RETRIEVAL_EMBEDDING": "hash",
+        "PAPERPILOT_CHAT_LLM": "0",
+        "PAPERPILOT_JUDGE_LLM": "0",
     },
 )
-class PaperStormLangGraphV44Test(unittest.TestCase):
+class PaperPilotLangGraphV44Test(unittest.TestCase):
     def test_structured_tool_query_is_used_for_contextual_evidence_followup(self):
         from knowledge_storm.conversation_runtime import _tool_query
 
@@ -81,7 +81,7 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
         self.assertIn("citation_contract", adjusted["runtime_adjustments"])
 
     def test_structured_memory_write_updates_durable_fact_without_phrase_rules(self):
-        from knowledge_storm.paperstorm_intent_router import PaperStormIntentRouter
+        from knowledge_storm.paperpilot_intent_router import PaperPilotIntentRouter
 
         planner_output = json.dumps(
             {
@@ -113,7 +113,7 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             runtime, _ = self.make_runtime(
                 temp_dir,
-                intent_router=PaperStormIntentRouter(
+                intent_router=PaperPilotIntentRouter(
                     llm_router=lambda _prompt: planner_output
                 ),
                 chat_llm=lambda _prompt, **_kwargs: "好的，已更新。",
@@ -133,7 +133,7 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
         self.assertIn("三条依据", memories[0]["content"])
 
     def test_multilingual_topic_does_not_reject_strong_query_evidence_overlap(self):
-        from knowledge_storm.paperstorm_research_qa import (
+        from knowledge_storm.paperpilot_research_qa import (
             evaluate_evidence_sufficiency,
         )
 
@@ -176,12 +176,12 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
                 '"requires_citations":false,"style_notes":["不要自我介绍"]}}'
             )
 
-        from knowledge_storm.paperstorm_intent_router import PaperStormIntentRouter
+        from knowledge_storm.paperpilot_intent_router import PaperPilotIntentRouter
 
         with tempfile.TemporaryDirectory() as temp_dir:
             runtime, _ = self.make_runtime(
                 temp_dir,
-                intent_router=PaperStormIntentRouter(llm_router=planner),
+                intent_router=PaperPilotIntentRouter(llm_router=planner),
                 chat_llm=chat_llm,
             )
             result = runtime.invoke(
@@ -226,15 +226,15 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
             )
 
         self.assertIn("模型调用超时", result["answer"])
-        self.assertNotIn("我是 PaperStorm", result["answer"])
+        self.assertNotIn("我是 PaperPilot", result["answer"])
         self.assertEqual(result["llm_error"]["type"], "timeout")
 
     def make_runtime(self, root, **kwargs):
-        from knowledge_storm.conversation_runtime import PaperStormConversationRuntime
-        from knowledge_storm.paperstorm_service import PaperStormTaskService
+        from knowledge_storm.conversation_runtime import PaperPilotConversationRuntime
+        from knowledge_storm.paperpilot_service import PaperPilotTaskService
 
-        service = kwargs.pop("task_service", None) or PaperStormTaskService(Path(root) / "service")
-        runtime = PaperStormConversationRuntime(
+        service = kwargs.pop("task_service", None) or PaperPilotTaskService(Path(root) / "service")
+        runtime = PaperPilotConversationRuntime(
             root_dir=Path(root) / "graph_runtime",
             task_service=service,
             **kwargs,
@@ -306,9 +306,9 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
 
     def test_response_model_cannot_start_research_without_planner_authorization(self):
         from knowledge_storm.conversation_runtime import RETRIEVE_MARKER
-        from knowledge_storm.paperstorm_intent_router import PaperStormIntentRouter
+        from knowledge_storm.paperpilot_intent_router import PaperPilotIntentRouter
 
-        planner = PaperStormIntentRouter(
+        planner = PaperPilotIntentRouter(
             llm_router=lambda _prompt: json.dumps(
                 {
                     "action": "respond",
@@ -363,9 +363,9 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
 
     def test_evidence_judge_can_force_research_for_off_topic_kb(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            from knowledge_storm.paperstorm_service import PaperStormTaskService
+            from knowledge_storm.paperpilot_service import PaperPilotTaskService
 
-            service = PaperStormTaskService(Path(temp_dir) / "service")
+            service = PaperPilotTaskService(Path(temp_dir) / "service")
             task = service.submit_research_task(
                 topic="pim 神经网络抑制",
                 run_mode="fake",
@@ -392,7 +392,7 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
             self.assertEqual(result["route"], "deep_research")
 
     def test_authorized_evidence_search_escalates_when_no_evidence_exists(self):
-        from knowledge_storm.paperstorm_intent_router import PaperStormIntentRouter
+        from knowledge_storm.paperpilot_intent_router import PaperPilotIntentRouter
 
         planner_output = json.dumps(
             {
@@ -415,7 +415,7 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             runtime, _ = self.make_runtime(
                 temp_dir,
-                intent_router=PaperStormIntentRouter(
+                intent_router=PaperPilotIntentRouter(
                     llm_router=lambda _prompt: planner_output
                 ),
             )
@@ -434,9 +434,9 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
 
     def test_evidence_judge_can_accept_existing_kb(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            from knowledge_storm.paperstorm_service import PaperStormTaskService
+            from knowledge_storm.paperpilot_service import PaperPilotTaskService
 
-            service = PaperStormTaskService(Path(temp_dir) / "service")
+            service = PaperPilotTaskService(Path(temp_dir) / "service")
             task = service.submit_research_task(
                 topic="pim 神经网络抑制",
                 run_mode="fake",
@@ -449,7 +449,7 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
                 task_service=service,
                 evidence_judge=lambda _prompt: "可以回答",
             )
-            with mock.patch.dict(os.environ, {"PAPERSTORM_CHAT_LLM": "0"}):
+            with mock.patch.dict(os.environ, {"PAPERPILOT_CHAT_LLM": "0"}):
                 result = runtime.invoke(
                     thread_id="thread-judge-ok",
                     request_id="request-judge-ok",
@@ -465,11 +465,11 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
             self.assertIn("passive intermodulation", result["answer"])
 
     def test_runtime_plans_retrieval_once_with_original_query_and_full_history(self):
-        from knowledge_storm.paperstorm_service import PaperStormTaskService
+        from knowledge_storm.paperpilot_service import PaperPilotTaskService
         from knowledge_storm.search_planning import SearchPlan, SearchPlanner
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            service = PaperStormTaskService(Path(temp_dir) / "service")
+            service = PaperPilotTaskService(Path(temp_dir) / "service")
             task = service.submit_research_task(
                 topic="pim 神经网络抑制",
                 run_mode="fake",
@@ -518,11 +518,11 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
         )
 
     def test_runtime_trace_exposes_typed_planning_error(self):
-        from knowledge_storm.paperstorm_service import PaperStormTaskService
+        from knowledge_storm.paperpilot_service import PaperPilotTaskService
         from knowledge_storm.search_planning import PlanningError, SearchPlanner
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            service = PaperStormTaskService(Path(temp_dir) / "service")
+            service = PaperPilotTaskService(Path(temp_dir) / "service")
             task = service.submit_research_task(topic="PIM", run_mode="fake")
             service.run_task(task["task_id"])
             runtime, _ = self.make_runtime(temp_dir, task_service=service)
@@ -632,7 +632,7 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
             self.assertEqual(isolated["memory_recall"]["results"], [])
 
     def test_recalled_preference_is_context_for_substantive_task_not_terminal_answer(self):
-        from knowledge_storm.paperstorm_intent_router import PaperStormIntentRouter
+        from knowledge_storm.paperpilot_intent_router import PaperPilotIntentRouter
 
         def planner(_prompt):
             return (
@@ -652,7 +652,7 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             runtime, _ = self.make_runtime(
                 temp_dir,
-                intent_router=PaperStormIntentRouter(llm_router=planner),
+                intent_router=PaperPilotIntentRouter(llm_router=planner),
                 chat_llm=chat_llm,
             )
             runtime.memory_service.ingest_message(
@@ -674,9 +674,9 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
         self.assertIn("先给结论", captured["prompt"])
 
     def test_memory_tool_mode_drives_behavior_without_phrase_classification(self):
-        from knowledge_storm.paperstorm_intent_router import PaperStormIntentRouter
+        from knowledge_storm.paperpilot_intent_router import PaperPilotIntentRouter
 
-        planner = PaperStormIntentRouter(
+        planner = PaperPilotIntentRouter(
             llm_router=lambda _prompt: json.dumps(
                 {
                     "action": "tool_call",
@@ -726,10 +726,10 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
 
     def test_deep_research_is_an_isolated_tool_with_artifact_contract(self):
         from knowledge_storm.conversation_runtime import StormDeepResearchTool
-        from knowledge_storm.paperstorm_service import PaperStormTaskService
+        from knowledge_storm.paperpilot_service import PaperPilotTaskService
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            service = PaperStormTaskService(Path(temp_dir) / "service")
+            service = PaperPilotTaskService(Path(temp_dir) / "service")
             tool = StormDeepResearchTool(service)
             result = tool.run(
                 {
@@ -778,9 +778,9 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
             task_count = len(service.list_tasks())
             runtime.close()
 
-            from knowledge_storm.conversation_runtime import PaperStormConversationRuntime
+            from knowledge_storm.conversation_runtime import PaperPilotConversationRuntime
 
-            recreated = PaperStormConversationRuntime(
+            recreated = PaperPilotConversationRuntime(
                 root_dir=Path(temp_dir) / "graph_runtime",
                 task_service=service,
             )
@@ -828,7 +828,7 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
                 from fastapi.testclient import TestClient
         except Exception as exc:  # pragma: no cover
             self.skipTest(str(exc))
-        from examples.storm_examples.paperstorm_service_api import create_app
+        from examples.storm_examples.paperpilot_service_api import create_app
 
         with tempfile.TemporaryDirectory() as temp_dir:
             client = TestClient(create_app(service_root=Path(temp_dir)))
@@ -851,21 +851,21 @@ class PaperStormLangGraphV44Test(unittest.TestCase):
                 params={"tenant_id": "local", "user_id": "alice"},
             )
         self.assertEqual(invoked.status_code, 200)
-        self.assertEqual(invoked.json()["runtime"], "paperstorm-production-runtime")
+        self.assertEqual(invoked.json()["runtime"], "paperpilot-production-runtime")
         self.assertEqual(invoked.json()["graph_runtime"], "conversation-runtime")
         self.assertEqual(state.json()["values"]["request_id"], "api-request")
         self.assertTrue(history.json()["checkpoints"])
 
     def test_chat_default_path_reports_langgraph_run(self):
-        from knowledge_storm.paperstorm_service import PaperStormTaskService
+        from knowledge_storm.paperpilot_service import PaperPilotTaskService
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            service = PaperStormTaskService(Path(temp_dir))
+            service = PaperPilotTaskService(Path(temp_dir))
             session = service.create_chat_session(user_id="alice", run_mode="fake")
             reply = service.send_chat_message(session["chat_id"], "你好")
 
             self.assertEqual(
-                reply["conversation_runtime"], "paperstorm-production-runtime"
+                reply["conversation_runtime"], "paperpilot-production-runtime"
             )
             self.assertEqual(reply["graph_run"]["graph_runtime"], "conversation-runtime")
             self.assertEqual(reply["graph_run"]["status"], "succeeded")

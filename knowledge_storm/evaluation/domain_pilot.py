@@ -71,7 +71,7 @@ def load_domain_dataset(
         for row in case_rows
     )
     return BenchmarkDataset(
-        name="paperstorm-pim-domain-pilot",
+        name="paperpilot-pim-domain-pilot",
         version="private-pilot-v1",
         documents=documents,
         cases=cases,

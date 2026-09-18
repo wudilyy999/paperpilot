@@ -45,7 +45,7 @@ class DomainPilotDatasetTests(unittest.TestCase):
 
             dataset = load_domain_dataset(corpus, cases, expected_case_count=1)
 
-        self.assertEqual("paperstorm-pim-domain-pilot", dataset.name)
+        self.assertEqual("paperpilot-pim-domain-pilot", dataset.name)
         self.assertEqual(1, len(dataset.documents))
         self.assertEqual(1, len(dataset.cases))
         self.assertEqual(

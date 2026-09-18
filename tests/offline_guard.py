@@ -7,10 +7,10 @@ import socket
 
 def install_offline_test_guard():
     for name, value in {
-        "PAPERSTORM_CHAT_LLM": "0",
-        "PAPERSTORM_JUDGE_LLM": "0",
-        "PAPERSTORM_ROUTER_LLM": "0",
-        "PAPERSTORM_RETRIEVAL_EMBEDDING": "hash",
+        "PAPERPILOT_CHAT_LLM": "0",
+        "PAPERPILOT_JUDGE_LLM": "0",
+        "PAPERPILOT_ROUTER_LLM": "0",
+        "PAPERPILOT_RETRIEVAL_EMBEDDING": "hash",
     }.items():
         os.environ.setdefault(name, value)
 

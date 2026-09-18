@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 
-DEFAULT_DATASET_NAME = "paperstorm-langfuse-observed-badcases"
+DEFAULT_DATASET_NAME = "paperpilot-langfuse-observed-badcases"
 
 
 def load_badcase_dataset(dataset_path) -> Dict:
@@ -41,7 +41,7 @@ def sync_langfuse_dataset(dataset_path, client=None, dataset_name: str = "") -> 
         client.create_dataset(
             name=name,
             description=(
-                "PaperStorm production bad cases discovered through Langfuse traces; "
+                "PaperPilot production bad cases discovered through Langfuse traces; "
                 "long-running latency cases are excluded from the fast regression gate."
             ),
             metadata={
@@ -58,7 +58,7 @@ def sync_langfuse_dataset(dataset_path, client=None, dataset_name: str = "") -> 
         item_id = str(
             uuid.uuid5(
                 uuid.NAMESPACE_URL,
-                "paperstorm:{0}:{1}:{2}".format(
+                "paperpilot:{0}:{1}:{2}".format(
                     name, payload["version"], case["case_id"]
                 ),
             )
@@ -155,10 +155,10 @@ def run_badcase_regression(dataset_path, output_dir=None) -> Dict:
 
 
 def _run_router_case(case: Dict) -> Dict:
-    from ..paperstorm_intent_router import PaperStormIntentRouter
+    from ..paperpilot_intent_router import PaperPilotIntentRouter
 
     planner_output = case.get("planner_output", "")
-    router = PaperStormIntentRouter(llm_router=lambda _prompt: planner_output)
+    router = PaperPilotIntentRouter(llm_router=lambda _prompt: planner_output)
     decision = router.route(
         message=case.get("message", ""),
         session=case.get("session") or {},
@@ -176,14 +176,14 @@ def _run_router_case(case: Dict) -> Dict:
 
 
 def _run_memory_case(case: Dict) -> Dict:
-    from ..paperstorm_observability import PaperStormObservability
-    from ..paperstorm_service import PaperStormTaskService
+    from ..paperpilot_observability import PaperPilotObservability
+    from ..paperpilot_service import PaperPilotTaskService
 
     with tempfile.TemporaryDirectory() as temp_dir:
         root = Path(temp_dir)
-        service = PaperStormTaskService(
+        service = PaperPilotTaskService(
             root,
-            observability=PaperStormObservability(root, enabled=False),
+            observability=PaperPilotObservability(root, enabled=False),
         )
         first = service.create_chat_session(
             run_mode="fake", user_id=case.get("user_id") or "regression-user"
@@ -222,9 +222,9 @@ def _run_arxiv_query_case(case: Dict) -> Dict:
 
 
 def _run_memory_context_case(case: Dict) -> Dict:
-    from ..paperstorm_intent_router import PaperStormIntentRouter
-    from ..paperstorm_service import PaperStormTaskService
-    from ..conversation_runtime import PaperStormConversationRuntime
+    from ..paperpilot_intent_router import PaperPilotIntentRouter
+    from ..paperpilot_service import PaperPilotTaskService
+    from ..conversation_runtime import PaperPilotConversationRuntime
 
     planner_output = case.get("planner_output") or ""
     captured = {}
@@ -235,10 +235,10 @@ def _run_memory_context_case(case: Dict) -> Dict:
 
     with tempfile.TemporaryDirectory() as temp_dir:
         root = Path(temp_dir)
-        runtime = PaperStormConversationRuntime(
+        runtime = PaperPilotConversationRuntime(
             root_dir=root / "runtime",
-            task_service=PaperStormTaskService(root / "service"),
-            intent_router=PaperStormIntentRouter(llm_router=lambda _prompt: planner_output),
+            task_service=PaperPilotTaskService(root / "service"),
+            intent_router=PaperPilotIntentRouter(llm_router=lambda _prompt: planner_output),
             chat_llm=answer,
         )
         try:
@@ -290,7 +290,7 @@ def _run_operational_contract_case(_case: Dict) -> Dict:
 
     with mock.patch.dict(
         os.environ,
-        {"PAPERSTORM_ALLOW_MODEL_DOWNLOAD": "0"},
+        {"PAPERPILOT_ALLOW_MODEL_DOWNLOAD": "0"},
         clear=False,
     ), mock.patch.dict(
         sys.modules,
@@ -307,7 +307,7 @@ def _run_operational_contract_case(_case: Dict) -> Dict:
 
 
 def _run_router_config_case(_case: Dict) -> Dict:
-    from ..paperstorm_router_llm import _router_output_tokens
+    from ..paperpilot_router_llm import _router_output_tokens
 
     return {
         "default_output_tokens": _router_output_tokens(),
@@ -316,7 +316,7 @@ def _run_router_config_case(_case: Dict) -> Dict:
 
 
 def _run_evidence_gate_case(case: Dict) -> Dict:
-    from ..paperstorm_research_qa import evaluate_evidence_sufficiency
+    from ..paperpilot_research_qa import evaluate_evidence_sufficiency
 
     result = evaluate_evidence_sufficiency(
         question=case.get("question") or "",
@@ -389,7 +389,7 @@ def _run_response_contract_case(case: Dict) -> Dict:
 
 def _run_api_contract_case(case: Dict) -> Dict:
     from fastapi.testclient import TestClient
-    from examples.storm_examples.paperstorm_service_api import create_app
+    from examples.storm_examples.paperpilot_service_api import create_app
 
     with tempfile.TemporaryDirectory() as temp_dir:
         client = TestClient(create_app(service_root=temp_dir))
@@ -428,7 +428,7 @@ def _run_memory_type_contract_case(case: Dict) -> Dict:
 
 def _run_citation_authorization_case(case: Dict) -> Dict:
     from ..conversation_runtime import _enforce_response_contract
-    from ..paperstorm_intent_router import enforce_tool_authorization
+    from ..paperpilot_intent_router import enforce_tool_authorization
 
     decision = enforce_tool_authorization(case.get("decision") or {})
     adjusted = _enforce_response_contract(
@@ -453,7 +453,7 @@ def _run_citation_authorization_case(case: Dict) -> Dict:
 
 
 def _run_scorecard_lifecycle_case(case: Dict) -> Dict:
-    from ..paperstorm_eval import EvalCase, evaluate_run
+    from ..paperpilot_eval import EvalCase, evaluate_run
 
     with tempfile.TemporaryDirectory() as temp_dir:
         run_dir = Path(temp_dir)
@@ -465,7 +465,7 @@ def _run_scorecard_lifecycle_case(case: Dict) -> Dict:
         (run_dir / "storm_gen_article_polished.txt").write_text(
             "无源互调 neural network [1]", encoding="utf-8"
         )
-        (run_dir / "paperstorm_trace.jsonl").write_text(
+        (run_dir / "paperpilot_trace.jsonl").write_text(
             '{"event":"run_end","success":true}\n', encoding="utf-8"
         )
         (run_dir / "run_summary.json").write_text(

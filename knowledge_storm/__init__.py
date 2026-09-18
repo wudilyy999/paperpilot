@@ -1,4 +1,4 @@
-__version__ = "7.3.0"
+__version__ = "1.0.0"
 
 from .storm_wiki import *
 from .collaborative_storm import *

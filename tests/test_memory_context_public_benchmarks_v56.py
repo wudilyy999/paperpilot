@@ -216,9 +216,9 @@ class MemoryContextPublicBenchmarkV56Tests(unittest.TestCase):
                 after = connection.execute("SELECT COUNT(*) FROM memory_events").fetchone()[0]
 
         self.assertEqual(report["case_count"], 2)
-        self.assertEqual(set(report["modes"]), {"recent_window", "paperstorm_memory"})
+        self.assertEqual(set(report["modes"]), {"recent_window", "paperpilot_memory"})
         self.assertEqual(report["answerable_case_count"], 1)
-        self.assertIn("retrieval_recall_at_1", report["modes"]["paperstorm_memory"])
+        self.assertIn("retrieval_recall_at_1", report["modes"]["paperpilot_memory"])
         self.assertEqual(report["evidence_tier"], "public-official-retrieval-only")
         self.assertEqual(before, after)
 

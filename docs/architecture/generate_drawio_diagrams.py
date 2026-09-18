@@ -1,4 +1,4 @@
-"""Generate editable Draw.io and SVG architecture diagrams for PaperStorm."""
+"""Generate editable Draw.io and SVG architecture diagrams for PaperPilot."""
 
 from dataclasses import dataclass, field
 from html import escape
@@ -100,7 +100,7 @@ def executive_diagram():
         panel("base_panel", 70, 755, 1780, 135, "核心能力底座", "control"),
         panel("value_panel", 70, 910, 1780, 115, "工程保障与业务价值", "storage"),
         Node("business", 720, 132, 480, 66, "业务需求", "论文调研 · 知识问答 · 内部知识服务", "external", font_size=22),
-        Node("platform", 720, 275, 480, 70, "PaperStorm Agent 平台", "统一入口 · 任务服务 · 会话服务", "primary", font_size=23),
+        Node("platform", 720, 275, 480, 70, "PaperPilot Agent 平台", "统一入口 · 任务服务 · 会话服务", "primary", font_size=23),
         Node("route", 720, 385, 480, 72, "意图识别与任务编排", "区分闲聊、知识问答与深度调研", "control", font_size=20),
         Node("chat", 300, 510, 420, 82, "智能问答链路", "上下文装配 → 记忆召回 → RAG 证据门控", "control", font_size=20),
         Node("research", 1200, 510, 420, 82, "深度调研链路", "Multi-Agent 协作 → STORM 长文生成", "storm", font_size=20),
@@ -133,10 +133,10 @@ def executive_diagram():
         Edge("evaluation", "value", kind="control", direction="right"),
     ]
     return Diagram(
-        "paperstorm-executive-overview",
+        "paperpilot-executive-overview",
         1920,
         1080,
-        "PaperStorm：论文调研与知识问答 Agent 平台",
+        "PaperPilot：论文调研与知识问答 Agent 平台",
         "从业务需求到可信回答与调研文章，形成可追溯、可恢复、可评测的 Agent 工程闭环",
         nodes,
         edges,
@@ -230,10 +230,10 @@ def detailed_diagram():
         Edge("feedback", "outcome", kind="control", direction="right"),
     ]
     return Diagram(
-        "paperstorm-agent-system-flow",
+        "paperpilot-agent-system-flow",
         2200,
         1300,
-        "PaperStorm Agent 系统流程与关键算法",
+        "PaperPilot Agent 系统流程与关键算法",
         "问答使用统一 Hybrid RAG；深度调研使用 STORM Multi-Agent、论文源召回与原生语义筛选",
         nodes,
         edges,
@@ -300,10 +300,10 @@ def async_runtime_sequence_diagram():
         for message in messages
     ]
     return Diagram(
-        "paperstorm-async-runtime-sequence",
+        "paperpilot-async-runtime-sequence",
         1900,
         920,
-        "PaperStorm 异步 Agent Runtime 时序",
+        "PaperPilot 异步 Agent Runtime 时序",
         "请求快速确认，后台检索与生成可恢复执行，并通过 SSE、Langfuse 持续反馈进度与质量",
         nodes,
         edges,

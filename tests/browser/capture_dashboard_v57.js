@@ -1,7 +1,7 @@
 const {chromium} = require("playwright");
 const path = require("path");
 
-const baseURL = process.env.PAPERSTORM_DEMO_URL || "http://127.0.0.1:8002";
+const baseURL = process.env.PAPERPILOT_DEMO_URL || "http://127.0.0.1:8002";
 const root = path.resolve(__dirname, "..", "..");
 const output = path.join(root, "docs", "screenshots");
 
@@ -34,7 +34,7 @@ async function main() {
     await page.locator("#start-research-demo").click();
     await page.locator("#start-research-demo").waitFor({state: "visible"});
     await page.waitForFunction(() => document.querySelector("#research-current-activity")?.textContent.includes("调研完成"));
-    await page.locator("#task-run-mode").selectOption("paperstorm", {force: true});
+    await page.locator("#task-run-mode").selectOption("paperpilot", {force: true});
     await page.screenshot({path: path.join(output, "dashboard-research-v57.png"), fullPage: true});
     const research = await assertLayout(page, "research");
 

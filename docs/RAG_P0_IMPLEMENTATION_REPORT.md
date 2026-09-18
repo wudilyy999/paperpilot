@@ -1,8 +1,8 @@
-# PaperStorm RAG P0 实施报告
+# PaperPilot RAG P0 实施报告
 
 ## 1. 目标与结论
 
-本轮工作的目标是统一 PaperStorm 的检索主链、清理版本化生产模块与 toy 评测，并建立可持续的
+本轮工作的目标是统一 PaperPilot 的检索主链、清理版本化生产模块与 toy 评测，并建立可持续的
 离线回归边界。研究问答、企业知识库、运行目录检索和公开 Benchmark 现在共同依赖
 `RetrievalPipeline`，其固定阶段为 `retrieve -> fuse -> rerank -> gate`。
 
@@ -33,7 +33,7 @@ Recall、F1 或 P95 相比既有报告进一步提升。现有公开指标仍以
 
 ### 2.3 内部版本号成为模块边界
 
-- **真实案例**：`paperstorm_context_v56.py`、`paperstorm_memory_v43.py` 等文件名被生产代码直接依赖，
+- **真实案例**：`paperpilot_context_v56.py`、`paperpilot_memory_v43.py` 等文件名被生产代码直接依赖，
   新旧实现长期并存，调用者无法判断主路径。
 - **根因**：版本演进通过复制模块完成，而不是稳定接口、schema revision 和数据迁移完成。
 - **改进方案**：迁移为 `context_engine.py`、`memory_policy.py`、`memory_store.py`、

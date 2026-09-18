@@ -118,7 +118,7 @@ class HnswDenseBackend:
         path.parent.mkdir(parents=True, exist_ok=True)
         self._index.save(str(path))
         metadata = {
-            "schema": "paperstorm-hnsw-usearch-v1",
+            "schema": "paperpilot-hnsw-usearch-v1",
             "implementation": self.implementation,
             "count": self.count,
             "dimension": self.dimension,
@@ -140,7 +140,7 @@ class HnswDenseBackend:
             ) from exc
         path = Path(path)
         metadata = json.loads(cls._metadata_path(path).read_text(encoding="utf-8"))
-        if metadata.get("schema") != "paperstorm-hnsw-usearch-v1":
+        if metadata.get("schema") != "paperpilot-hnsw-usearch-v1":
             raise ValueError("unsupported HNSW index metadata")
         instance = cls.__new__(cls)
         instance.count = int(metadata["count"])

@@ -163,8 +163,8 @@ class SentenceTransformerProfileProviderTests(unittest.TestCase):
         with mock.patch.dict(
             os.environ,
             {
-                "PAPERSTORM_EMBEDDING_MODEL": "example/custom-embedding",
-                "PAPERSTORM_EMBEDDING_PROFILE": "cpu-zh",
+                "PAPERPILOT_EMBEDDING_MODEL": "example/custom-embedding",
+                "PAPERPILOT_EMBEDDING_PROFILE": "cpu-zh",
             },
             clear=True,
         ):
@@ -204,12 +204,12 @@ class RetrievalProfileIntegrationTests(unittest.TestCase):
         from knowledge_storm.memory_store import build_memory_embedding_provider
 
         with mock.patch.dict(
-            os.environ, {"PAPERSTORM_EMBEDDING_PROFILE": "cpu-zh"}, clear=True
+            os.environ, {"PAPERPILOT_EMBEDDING_PROFILE": "cpu-zh"}, clear=True
         ):
             first = build_memory_embedding_provider()
         with mock.patch.dict(
             os.environ,
-            {"PAPERSTORM_EMBEDDING_PROFILE": "quality-multilingual"},
+            {"PAPERPILOT_EMBEDDING_PROFILE": "quality-multilingual"},
             clear=True,
         ):
             second = build_memory_embedding_provider()
@@ -222,7 +222,7 @@ class RetrievalProfileIntegrationTests(unittest.TestCase):
         from knowledge_storm import memory_store, retrieval_runtime
 
         with mock.patch.dict(
-            os.environ, {"PAPERSTORM_EMBEDDING_PROFILE": "cpu-zh"}, clear=True
+            os.environ, {"PAPERPILOT_EMBEDDING_PROFILE": "cpu-zh"}, clear=True
         ):
             retrieval_runtime._REAL_EMBEDDING_PROVIDER = None
             runtime_profile = retrieval_runtime.runtime_embedding_profile()

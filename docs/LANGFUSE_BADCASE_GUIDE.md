@@ -12,7 +12,7 @@ To enable Langfuse export, install the observability extra and configure:
 
 ```powershell
 pip install -e ".[observability]"
-$env:PAPERSTORM_OBSERVABILITY = "langfuse"
+$env:PAPERPILOT_OBSERVABILITY = "langfuse"
 $env:LANGFUSE_PUBLIC_KEY = "pk-..."
 $env:LANGFUSE_SECRET_KEY = "sk-..."
 ```
@@ -48,8 +48,8 @@ are rejected before a trace is created.
 and English/digit terms in the answer with final context text. It is not an LLM judge and should
 not be interpreted as semantic entailment.
 
-The report is `<output-dir>/langfuse_badcase_report.json` and includes the PaperStorm-local
-`paperstorm_trace_id`, optional SDK-provided `remote_trace_id`, scores, badcase types,
+The report is `<output-dir>/langfuse_badcase_report.json` and includes the PaperPilot-local
+`paperpilot_trace_id`, optional SDK-provided `remote_trace_id`, scores, badcase types,
 observability status, and local event path. These IDs are not assumed to be equivalent.
 
 ## Langfuse Investigation
@@ -60,7 +60,7 @@ observability status, and local event path. These IDs are not assumed to be equi
    or low `answer_groundedness`; compare `latency_ms` by environment and release.
 3. When `remote_trace_id` is present, open that Langfuse trace. Otherwise search Langfuse by
    `case_id` together with the `badcase` and classification tags. Open the root trace
-   `paperstorm.rag.badcase` and inspect, in order: `route`, `retrieve`,
+   `paperpilot.rag.badcase` and inspect, in order: `route`, `retrieve`,
    `rerank`, `context`, `reader`, and `citation_validate`.
 4. The first divergent span identifies the root cause: retrieval loss, evidence selection loss,
    reader/evidence conflict or abstention, or unsupported citations.

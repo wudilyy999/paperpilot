@@ -119,7 +119,7 @@ class StormInformationTable(InformationTable):
             self.encoded_snippets = np.empty((0, 0))
             return
         allow_download = str(
-            os.getenv("PAPERSTORM_ALLOW_MODEL_DOWNLOAD", "0")
+            os.getenv("PAPERPILOT_ALLOW_MODEL_DOWNLOAD", "0")
         ).lower() in {"1", "true", "yes", "on"}
         model_name = "sentence-transformers/paraphrase-MiniLM-L6-v2"
         if not allow_download:
@@ -129,7 +129,7 @@ class StormInformationTable(InformationTable):
             os.environ["TRANSFORMERS_OFFLINE"] = "1"
             model_name = snapshot_download(
                 repo_id=model_name,
-                cache_dir=os.getenv("PAPERSTORM_MODEL_CACHE") or os.getenv("HF_HOME"),
+                cache_dir=os.getenv("PAPERPILOT_MODEL_CACHE") or os.getenv("HF_HOME"),
                 local_files_only=True,
             )
         self.encoder = SentenceTransformer(

@@ -182,7 +182,7 @@ class SentenceTransformerProvider:
             self.profile = resolve_embedding_profile(profile_name=profile, model_name=model_name)
         self.model_name = self.profile.model_name
         self.name = "sentence-transformers:{0}".format(self.model_name)
-        self.cache_folder = cache_folder or os.getenv("PAPERSTORM_MODEL_CACHE")
+        self.cache_folder = cache_folder or os.getenv("PAPERPILOT_MODEL_CACHE")
         self.device = device
         self.model = model
         self.dim = int(self.profile.dimension or 0)
@@ -193,14 +193,14 @@ class SentenceTransformerProvider:
         if self.model is None:
             from sentence_transformers import SentenceTransformer
 
-            offline = str(os.getenv("PAPERSTORM_OFFLINE_TESTS", "0")).lower() in {
+            offline = str(os.getenv("PAPERPILOT_OFFLINE_TESTS", "0")).lower() in {
                 "1",
                 "true",
                 "yes",
                 "on",
             }
             allow_download = str(
-                os.getenv("PAPERSTORM_ALLOW_MODEL_DOWNLOAD", "0")
+                os.getenv("PAPERPILOT_ALLOW_MODEL_DOWNLOAD", "0")
             ).lower() in {"1", "true", "yes", "on"}
             model_source = self.model_name
             if (
@@ -319,7 +319,7 @@ def build_embedding_provider(
 ):
     selected = str(
         provider
-        or os.getenv("PAPERSTORM_EMBEDDING_PROVIDER")
+        or os.getenv("PAPERPILOT_EMBEDDING_PROVIDER")
         or "sentence-transformer"
     ).strip().lower()
     if selected in {"hash", "local", "smoke"}:
@@ -352,7 +352,7 @@ class CrossEncoderReranker:
         )
         self.model_name = self.profile.model_name
         self.score_fn = score_fn
-        self.cache_folder = cache_folder or os.getenv("PAPERSTORM_MODEL_CACHE")
+        self.cache_folder = cache_folder or os.getenv("PAPERPILOT_MODEL_CACHE")
         self.device = str(device or self.profile.device)
         self.batch_size = int(batch_size or self.profile.batch_size)
         self.max_candidates = int(self.profile.max_candidates)
@@ -377,7 +377,7 @@ class CrossEncoderReranker:
                         )
                     self.device = "cpu"
 
-            offline = str(os.getenv("PAPERSTORM_OFFLINE_TESTS", "0")).lower() in {
+            offline = str(os.getenv("PAPERPILOT_OFFLINE_TESTS", "0")).lower() in {
                 "1",
                 "true",
                 "yes",
@@ -433,7 +433,7 @@ class IndexIntegrityError(ValueError):
 class HybridPaperIndex:
     """Persistent BM25 + dense index with RRF and optional Cross-Encoder."""
 
-    schema_version = "paperstorm-hybrid-index"
+    schema_version = "paperpilot-hybrid-index"
     schema_revision = 3
     node_schema = "structured-parent-child-v1"
     default_max_nodes = 250_000
@@ -869,7 +869,7 @@ class HybridPaperIndex:
         nodes = []
         documents = []
         from .document_ingestion import chunk_text
-        from .paperstorm_sources import load_article_passages
+        from .paperpilot_sources import load_article_passages
 
         article_passages = load_article_passages(run_dir)
         sections = {}

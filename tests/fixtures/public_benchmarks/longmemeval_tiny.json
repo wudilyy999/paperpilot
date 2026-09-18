@@ -34,7 +34,7 @@
       {
         "session_id": "s3",
         "date": "2026-03-01",
-        "content": [{"role": "user", "content": "我今天在调试 PaperStorm。"}]
+        "content": [{"role": "user", "content": "我今天在调试 PaperPilot。"}]
       }
     ]
   }

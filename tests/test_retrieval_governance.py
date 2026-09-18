@@ -85,7 +85,7 @@ class RetrievalGovernanceTest(unittest.TestCase):
         self.assertEqual("private-doc", legacy[0]["document_id"])
 
     def test_cache_identity_changes_with_tenant_or_user_policy(self):
-        from knowledge_storm.paperstorm_enterprise_kb import _answer_cache_identity
+        from knowledge_storm.paperpilot_enterprise_kb import _answer_cache_identity
 
         shared = {
             "kb_id": "kb-1",
@@ -108,7 +108,7 @@ class RetrievalGovernanceTest(unittest.TestCase):
         self.assertNotEqual(owner, other_tenant)
 
     def test_enterprise_ask_scopes_accessible_documents_and_cache_by_policy(self):
-        from knowledge_storm.paperstorm_enterprise_kb import EnterpriseKnowledgeBaseService
+        from knowledge_storm.paperpilot_enterprise_kb import EnterpriseKnowledgeBaseService
 
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

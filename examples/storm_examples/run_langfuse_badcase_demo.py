@@ -1,4 +1,4 @@
-"""Run PaperStorm's deterministic Langfuse badcase demonstration."""
+"""Run PaperPilot's deterministic Langfuse badcase demonstration."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _MODULE_NAMES = (
     "knowledge_storm",
-    "knowledge_storm.paperstorm_observability",
+    "knowledge_storm.paperpilot_observability",
     "knowledge_storm.langfuse_badcase_demo",
 )
 _MISSING = object()
@@ -61,7 +61,7 @@ def _select_case(payload, scenario):
 def main(argv=None):
     demo, previous_modules = _load_demo_module()
     try:
-        parser = argparse.ArgumentParser(description="Trace a deterministic PaperStorm RAG badcase.")
+        parser = argparse.ArgumentParser(description="Trace a deterministic PaperPilot RAG badcase.")
         parser.add_argument("--output-dir", default="results/langfuse_badcase_demo")
         parser.add_argument("--case-file", default=None, help="JSON case or a scenarios mapping.")
         parser.add_argument("--scenario", default="composite", help="Scenario name in --case-file.")
@@ -80,8 +80,8 @@ def main(argv=None):
         report_path = output_dir / "langfuse_badcase_report.json"
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print("Wrote {0}".format(report_path))
-        print("PaperStorm trace {0} ({1})".format(
-            result["paperstorm_trace_id"], result["observability"]["status"]
+        print("PaperPilot trace {0} ({1})".format(
+            result["paperpilot_trace_id"], result["observability"]["status"]
         ))
         return 0
     finally:

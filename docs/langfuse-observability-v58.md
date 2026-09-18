@@ -1,22 +1,22 @@
-# PaperStorm v5.8 Langfuse 可观测性设计与学习记录
+# PaperPilot v5.8 Langfuse 可观测性设计与学习记录
 
 ## 1. 为什么接入 Langfuse
 
-PaperStorm 原有 `paperstorm_trace.jsonl` 擅长描述单次调研内部阶段，但 Research、Chat、
+PaperPilot 原有 `paperpilot_trace.jsonl` 擅长描述单次调研内部阶段，但 Research、Chat、
 Benchmark 使用了不同产物，难以按会话、版本和环境统一比较。v5.8 增加可插拔观测层，
 将三类执行统一为 `Trace -> Observation -> Score`，同时保留本地 JSONL 作为审计底座。
 
 Langfuse 不是 Agent runtime，也不替代 LangGraph checkpoint、业务数据库或 Benchmark
-脚本。它负责跨运行追踪、指标归集、失败定位和版本比较；PaperStorm runtime 仍负责执行、
+脚本。它负责跨运行追踪、指标归集、失败定位和版本比较；PaperPilot runtime 仍负责执行、
 重试、状态持久化与恢复。
 
 ## 2. 数据模型
 
 | 业务动作 | Trace | 子 Observation | Score |
 | --- | --- | --- | --- |
-| 论文调研 | `paperstorm.research` | `research_pipeline` | `run_success`、`run_score` |
-| 一轮聊天 | `paperstorm.chat` | 实际执行的 LangGraph 节点 | `trajectory_success`、`retrieval_triggered` |
-| 公开评测 | `paperstorm.benchmark` | 后续可扩展为逐样本 span | `metrics.json` 数值叶子、`run_success` |
+| 论文调研 | `paperpilot.research` | `research_pipeline` | `run_success`、`run_score` |
+| 一轮聊天 | `paperpilot.chat` | 实际执行的 LangGraph 节点 | `trajectory_success`、`retrieval_triggered` |
+| 公开评测 | `paperpilot.benchmark` | 后续可扩展为逐样本 span | `metrics.json` 数值叶子、`run_success` |
 
 `chat_id` 映射为 Langfuse session，伪匿名用户 ID 映射为 user，版本、运行模式、检索器和
 环境写入 metadata/tags。这样可以回答：某版本在哪条路由变慢、哪类问题频繁触发检索、

@@ -568,11 +568,11 @@ class RetrievalPipelineTest(unittest.TestCase):
         self.assertEqual("completed", gate_stage["status"])
 
     def test_knowledge_base_uses_injected_pipeline_ranking(self):
-        from knowledge_storm.paperstorm_qa import PaperStormKnowledgeBase
+        from knowledge_storm.paperpilot_qa import PaperPilotKnowledgeBase
         from knowledge_storm.retrieval_pipeline import RetrievalPipeline
 
         index = RecordingIndex()
-        knowledge_base = PaperStormKnowledgeBase(
+        knowledge_base = PaperPilotKnowledgeBase(
             documents=[], retrieval_pipeline=RetrievalPipeline(index)
         )
 
@@ -587,7 +587,7 @@ class RetrievalPipelineTest(unittest.TestCase):
     def test_qa_uses_expanded_parent_content_but_cites_child(self):
         import json
 
-        from knowledge_storm.paperstorm_qa import PaperStormKnowledgeBase
+        from knowledge_storm.paperpilot_qa import PaperPilotKnowledgeBase
         from knowledge_storm.retrieval_pipeline import RetrievalPipeline
 
         class ParentIndex(RecordingIndex):
@@ -598,7 +598,7 @@ class RetrievalPipelineTest(unittest.TestCase):
                 return [dict(results[0], parent_context="关键事实是 parent-only-fact。", expanded_content="关键事实是 parent-only-fact。\n\nchild has no answer")]
 
         captured = []
-        kb = PaperStormKnowledgeBase([], retrieval_pipeline=RetrievalPipeline(ParentIndex()))
+        kb = PaperPilotKnowledgeBase([], retrieval_pipeline=RetrievalPipeline(ParentIndex()))
         answer = kb.answer_question(
             "关键事实是什么？",
             top_k=1,
@@ -624,7 +624,7 @@ class RetrievalPipelineTest(unittest.TestCase):
         self.assertEqual("child-gold", composed["citations"][0]["chunk_id"])
 
     def test_qa_prompt_keeps_child_gold_fact_before_long_parent_context(self):
-        from knowledge_storm.paperstorm_qa import _kb_answer_prompt
+        from knowledge_storm.paperpilot_qa import _kb_answer_prompt
 
         prompt = _kb_answer_prompt(
             "关键事实是什么？",

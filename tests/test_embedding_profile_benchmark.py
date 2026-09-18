@@ -56,7 +56,7 @@ class StableBenchmarkSamplingTests(unittest.TestCase):
 
 class BenchmarkReportTests(unittest.TestCase):
     def test_milestone_parser_accepts_a_frozen_embedding_profile(self):
-        from examples.storm_examples.run_paperstorm_milestone import build_parser
+        from examples.storm_examples.run_paperpilot_milestone import build_parser
 
         args = build_parser().parse_args(
             [

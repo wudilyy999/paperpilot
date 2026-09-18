@@ -1,4 +1,4 @@
-"""Run PaperStorm LongMemEval retrieval diagnostics.
+"""Run PaperPilot LongMemEval retrieval diagnostics.
 
 This command deliberately labels the result retrieval-only.  End-to-end answer
 accuracy requires a separately frozen reader LLM and the official evaluator.
@@ -15,7 +15,7 @@ from knowledge_storm.retrieval import SentenceTransformerProvider
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(description="PaperStorm LongMemEval retrieval benchmark")
+    parser = argparse.ArgumentParser(description="PaperPilot LongMemEval retrieval benchmark")
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--embedding", choices=["hash", "sentence-transformer"], default="sentence-transformer")

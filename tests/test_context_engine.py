@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 
-class PaperStormContextV56Tests(unittest.TestCase):
+class PaperPilotContextV56Tests(unittest.TestCase):
     def test_default_profile_exposes_one_million_model_window_with_soft_budget(self):
         from knowledge_storm.context_engine import _ContextEngineConfigBase
 

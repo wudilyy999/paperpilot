@@ -56,7 +56,7 @@ class ArxivRM(dspy.Retrieve):
             "sortOrder": self.sort_order,
         }
         headers = {
-            "User-Agent": "PaperStorm-Agent/1.0 (academic research; contact via repository)"
+            "User-Agent": "PaperPilot-Agent/1.0 (academic research; contact via repository)"
         }
         with _ARXIV_REQUEST_LOCK:
             wait = _ARXIV_MIN_INTERVAL_SECONDS - (
@@ -136,7 +136,7 @@ class ArxivRM(dspy.Retrieve):
             "https://arxiv.org/search/",
             params={"query": plain_query, "searchtype": "all", "size": 25},
             headers={
-                "User-Agent": "PaperStorm-Agent/1.0 (academic research; contact via repository)"
+                "User-Agent": "PaperPilot-Agent/1.0 (academic research; contact via repository)"
             },
             timeout=30,
         )

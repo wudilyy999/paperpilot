@@ -19,12 +19,12 @@ class LangfuseObservedBadcaseRegressionTest(unittest.TestCase):
         self.assertGreaterEqual(len(case_ids), 7)
 
     def test_router_badcases_obey_expected_action_contracts(self):
-        from knowledge_storm.paperstorm_intent_router import PaperStormIntentRouter
+        from knowledge_storm.paperpilot_intent_router import PaperPilotIntentRouter
 
         route_cases = [case for case in self.dataset["cases"] if case["kind"] == "router"]
         for case in route_cases:
             with self.subTest(case_id=case["case_id"]):
-                router = PaperStormIntentRouter(
+                router = PaperPilotIntentRouter(
                     llm_router=lambda _prompt, output=case["planner_output"]: output
                 )
                 decision = router.route(
@@ -43,11 +43,11 @@ class LangfuseObservedBadcaseRegressionTest(unittest.TestCase):
                     )
 
     def test_explicit_memory_write_is_verified_and_recalled_cross_session(self):
-        from knowledge_storm.paperstorm_service import PaperStormTaskService
+        from knowledge_storm.paperpilot_service import PaperPilotTaskService
 
         case = next(case for case in self.dataset["cases"] if case["kind"] == "memory_sequence")
         with tempfile.TemporaryDirectory() as temp_dir:
-            service = PaperStormTaskService(Path(temp_dir))
+            service = PaperPilotTaskService(Path(temp_dir))
             first = service.create_chat_session(run_mode="fake", user_id=case["user_id"])
             written = service.send_chat_message(first["chat_id"], case["write_message"])
             second = service.create_chat_session(run_mode="fake", user_id=case["user_id"])

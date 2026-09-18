@@ -23,19 +23,19 @@ from knowledge_storm.retrieval import (
     CrossEncoderReranker,
     SentenceTransformerProvider,
 )
-from knowledge_storm.paperstorm_router_llm import _load_flat_toml_env
+from knowledge_storm.paperpilot_router_llm import _load_flat_toml_env
 
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        description="PaperStorm QASPER end-to-end Answer F1 benchmark"
+        description="PaperPilot QASPER end-to-end Answer F1 benchmark"
     )
     parser.add_argument("--split", choices=("validation", "test"), required=True)
     parser.add_argument("--retrieval-predictions", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument(
         "--cache-dir",
-        default=str(Path.home() / ".cache" / "paperstorm"),
+        default=str(Path.home() / ".cache" / "paperpilot"),
     )
     parser.add_argument(
         "--dataset-file",

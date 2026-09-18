@@ -5,14 +5,14 @@ import unittest
 from pathlib import Path
 
 
-class PaperStormProductionV45Test(unittest.TestCase):
+class PaperPilotProductionV45Test(unittest.TestCase):
     def make_control(self, root):
         from knowledge_storm.control_plane import ProductionControlPlane
 
         return ProductionControlPlane(Path(root) / "production_v45.sqlite")
 
     def test_service_reuses_legacy_state_roots_during_upgrade(self):
-        from knowledge_storm.paperstorm_service import PaperStormTaskService
+        from knowledge_storm.paperpilot_service import PaperPilotTaskService
 
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -20,7 +20,7 @@ class PaperStormProductionV45Test(unittest.TestCase):
             (root / "memory_service_v56").mkdir()
             legacy_control = root / "production_control_v45.sqlite"
             legacy_control.touch()
-            service = PaperStormTaskService(root)
+            service = PaperPilotTaskService(root)
 
             self.assertEqual(
                 root / "production_runtime_v45",
@@ -201,7 +201,7 @@ class PaperStormProductionV45Test(unittest.TestCase):
             self.assertEqual(len(calls), 2)
 
     def test_enterprise_kb_enforces_acl_and_processes_incremental_update(self):
-        from knowledge_storm.paperstorm_service import PaperStormTaskService
+        from knowledge_storm.paperpilot_service import PaperPilotTaskService
 
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -209,7 +209,7 @@ class PaperStormProductionV45Test(unittest.TestCase):
             second = root / "second.txt"
             first.write_text("PIM means passive intermodulation in RF systems.", encoding="utf-8")
             second.write_text("Neural cancellers suppress passive intermodulation distortion.", encoding="utf-8")
-            service = PaperStormTaskService(root / "service")
+            service = PaperPilotTaskService(root / "service")
             manifest = service.create_enterprise_knowledge_base(
                 name="RF KB",
                 source_paths=[str(first)],
@@ -263,10 +263,10 @@ class PaperStormProductionV45Test(unittest.TestCase):
             self.assertEqual(document_resource["tenant_id"], "tenant-a")
 
     def test_runtime_exposes_trace_and_idempotent_replay(self):
-        from knowledge_storm.paperstorm_service import PaperStormTaskService
+        from knowledge_storm.paperpilot_service import PaperPilotTaskService
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            service = PaperStormTaskService(Path(temp_dir) / "service")
+            service = PaperPilotTaskService(Path(temp_dir) / "service")
             result = service.invoke_conversation_graph(
                 tenant_id="tenant-a",
                 thread_id="thread-1",
@@ -286,14 +286,14 @@ class PaperStormProductionV45Test(unittest.TestCase):
             trace = service.get_production_trace(
                 result["trace_id"], tenant_id="tenant-a", user_id="alice"
             )
-            self.assertEqual(result["runtime"], "paperstorm-production-runtime")
+            self.assertEqual(result["runtime"], "paperpilot-production-runtime")
             self.assertTrue(replay["governance"]["idempotent_replay"])
             self.assertTrue(trace["spans"])
 
     def test_dashboard_exposes_live_production_diagnostics(self):
         root = Path(__file__).resolve().parents[1]
-        index = (root / "frontend/paperstorm_dashboard/index.html").read_text(encoding="utf-8")
-        script = (root / "frontend/paperstorm_dashboard/app.js").read_text(encoding="utf-8")
+        index = (root / "frontend/paperpilot_dashboard/index.html").read_text(encoding="utf-8")
+        script = (root / "frontend/paperpilot_dashboard/app.js").read_text(encoding="utf-8")
 
         self.assertIn("执行链路诊断", index)
         self.assertIn("runtime-production-status", index)
@@ -304,7 +304,7 @@ class PaperStormProductionV45Test(unittest.TestCase):
             from fastapi.testclient import TestClient
         except Exception as exc:  # pragma: no cover
             self.skipTest(str(exc))
-        from examples.storm_examples.paperstorm_service_api import create_app
+        from examples.storm_examples.paperpilot_service_api import create_app
 
         with tempfile.TemporaryDirectory() as temp_dir:
             client = TestClient(create_app(service_root=Path(temp_dir)))
@@ -338,7 +338,7 @@ class PaperStormProductionV45Test(unittest.TestCase):
             )
             status = client.get("/production/status")
         self.assertEqual(invoked.status_code, 200)
-        self.assertEqual(result["runtime"], "paperstorm-production-runtime")
+        self.assertEqual(result["runtime"], "paperpilot-production-runtime")
         self.assertEqual(state.json()["values"]["request_id"], "api-v45-request")
         self.assertTrue(history.json()["checkpoints"])
         self.assertTrue(trace.json()["spans"])

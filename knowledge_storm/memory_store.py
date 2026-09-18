@@ -1,4 +1,4 @@
-"""Production-oriented local memory substrate for PaperStorm.
+"""Production-oriented local memory substrate for PaperPilot.
 
 The module deliberately keeps storage local and dependency-light.  It borrows
 the episode/fact/provenance model from temporal context graphs without forcing
@@ -710,10 +710,10 @@ def build_memory_embedding_provider(model_name=None, cache_folder=None, profile_
 
     model = (
         model_name
-        or os.getenv("PAPERSTORM_MEMORY_EMBEDDING_MODEL")
-        or os.getenv("PAPERSTORM_EMBEDDING_MODEL")
+        or os.getenv("PAPERPILOT_MEMORY_EMBEDDING_MODEL")
+        or os.getenv("PAPERPILOT_EMBEDDING_MODEL")
     )
-    cache = cache_folder or os.getenv("PAPERSTORM_MODEL_CACHE") or os.getenv("HF_HOME")
+    cache = cache_folder or os.getenv("PAPERPILOT_MODEL_CACHE") or os.getenv("HF_HOME")
     profile = resolve_embedding_profile(profile_name=profile_name, model_name=model)
     return _memory_provider_for_profile(profile, cache)
 

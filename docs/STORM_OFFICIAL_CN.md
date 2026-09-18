@@ -1,6 +1,6 @@
 # 官方 STORM 中文说明
 
-本文档是对 `README_STORM_OFFICIAL.md` 中官方 STORM 项目说明的中文整理。原文仍保留在仓库根目录，本文用于快速理解官方架构，以及 PaperStorm Agent 是在什么基础上做二次开发。
+本文档是对 `README_STORM_OFFICIAL.md` 中官方 STORM 项目说明的中文整理。原文仍保留在仓库根目录，本文用于快速理解官方架构，以及 PaperPilot Agent 是在什么基础上做二次开发。
 
 ## 1. STORM 是什么
 
@@ -114,9 +114,9 @@ assets/co-storm-workflow.jpg
 - Human user：可以观察讨论，也可以主动插入信息改变讨论方向。
 - Mind map：动态组织概念结构，降低长讨论中的认知负担。
 
-## 7. PaperStorm Agent 在官方基础上的增强
+## 7. PaperPilot Agent 在官方基础上的增强
 
-PaperStorm Agent 没有替代官方 STORM，而是在官方 RAG/Deep Research pipeline 基础上做工程化增强：
+PaperPilot Agent 没有替代官方 STORM，而是在官方 RAG/Deep Research pipeline 基础上做工程化增强：
 
 - 中文论文调研。
 - DeepSeek / MiniMax 接入。
@@ -134,5 +134,5 @@ PaperStorm Agent 没有替代官方 STORM，而是在官方 RAG/Deep Research pi
 一句话：
 
 ```text
-官方 STORM 解决“如何做多视角调研并生成文章”，PaperStorm Agent 进一步补齐“如何把它做成可观测、可评估、可服务化、可展示的 Agent 工程项目”。
+官方 STORM 解决“如何做多视角调研并生成文章”，PaperPilot Agent 进一步补齐“如何把它做成可观测、可评估、可服务化、可展示的 Agent 工程项目”。
 ```

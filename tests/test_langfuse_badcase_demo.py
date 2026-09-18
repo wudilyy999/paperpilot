@@ -42,7 +42,7 @@ class _RemoteLangfuseClient:
 class LangfuseBadcaseDemoTest(unittest.TestCase):
     _MODULE_NAMES = (
         "knowledge_storm",
-        "knowledge_storm.paperstorm_observability",
+        "knowledge_storm.paperpilot_observability",
         "knowledge_storm.langfuse_badcase_demo",
     )
     _MISSING = object()
@@ -67,12 +67,12 @@ class LangfuseBadcaseDemoTest(unittest.TestCase):
         package.__path__ = [str(root / "knowledge_storm")]
         sys.modules["knowledge_storm"] = package
         for name in (
-            "knowledge_storm.paperstorm_observability",
+            "knowledge_storm.paperpilot_observability",
             "knowledge_storm.langfuse_badcase_demo",
         ):
             sys.modules.pop(name, None)
         for name in (
-            "knowledge_storm.paperstorm_observability",
+            "knowledge_storm.paperpilot_observability",
             "knowledge_storm.langfuse_badcase_demo",
         ):
             path = root / "knowledge_storm" / (name.rsplit(".", 1)[-1] + ".py")
@@ -116,7 +116,7 @@ class LangfuseBadcaseDemoTest(unittest.TestCase):
     @staticmethod
     def _local_only_environment():
         return {
-            "PAPERSTORM_OBSERVABILITY": "",
+            "PAPERPILOT_OBSERVABILITY": "",
             "LANGFUSE_PUBLIC_KEY": "",
             "LANGFUSE_SECRET_KEY": "",
         }
@@ -130,7 +130,7 @@ class LangfuseBadcaseDemoTest(unittest.TestCase):
             events = events_path.read_text(encoding="utf-8")
             rows = [json.loads(line) for line in events.splitlines()]
 
-        self.assertTrue(result["paperstorm_trace_id"])
+        self.assertTrue(result["paperpilot_trace_id"])
         self.assertIsNone(result["remote_trace_id"])
         self.assertEqual(result["scores"]["retrieval_recall_at_5"], 0.5)
         self.assertEqual(result["scores"]["citation_validity"], 0.0)
@@ -148,7 +148,7 @@ class LangfuseBadcaseDemoTest(unittest.TestCase):
         self.assertEqual(result["observability"]["status"], "local-only")
         self.assertEqual(
             [row["name"] for row in rows if row["event"] == "trace.start"],
-            ["paperstorm.rag.badcase"],
+            ["paperpilot.rag.badcase"],
         )
         self.assertEqual(
             [row["name"] for row in rows if row["event"] == "span.start"],
@@ -168,12 +168,12 @@ class LangfuseBadcaseDemoTest(unittest.TestCase):
     def test_exporter_failure_is_fail_open_and_keeps_sanitized_local_event(self):
         demo = self._load_module("knowledge_storm.langfuse_badcase_demo")
         run_badcase_demo = demo.run_badcase_demo
-        PaperStormObservability = sys.modules[
-            "knowledge_storm.paperstorm_observability"
-        ].PaperStormObservability
+        PaperPilotObservability = sys.modules[
+            "knowledge_storm.paperpilot_observability"
+        ].PaperPilotObservability
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            observability = PaperStormObservability(
+            observability = PaperPilotObservability(
                 temp_dir, enabled=True, langfuse_client=_FailingLangfuseClient()
             )
             result = run_badcase_demo(
@@ -292,22 +292,22 @@ class LangfuseBadcaseDemoTest(unittest.TestCase):
                 with self.assertRaises((TypeError, ValueError)):
                     run_badcase_demo(case, output_dir=temp_dir)
 
-    def test_remote_and_paperstorm_trace_ids_are_distinct(self):
+    def test_remote_and_paperpilot_trace_ids_are_distinct(self):
         demo = self._load_module("knowledge_storm.langfuse_badcase_demo")
-        PaperStormObservability = sys.modules[
-            "knowledge_storm.paperstorm_observability"
-        ].PaperStormObservability
+        PaperPilotObservability = sys.modules[
+            "knowledge_storm.paperpilot_observability"
+        ].PaperPilotObservability
         with tempfile.TemporaryDirectory() as temp_dir:
-            observer = PaperStormObservability(
+            observer = PaperPilotObservability(
                 temp_dir, enabled=True, langfuse_client=_RemoteLangfuseClient()
             )
             result = demo.run_badcase_demo(
                 self._composite_case(), output_dir=temp_dir, observability=observer
             )
 
-        self.assertTrue(result["paperstorm_trace_id"])
+        self.assertTrue(result["paperpilot_trace_id"])
         self.assertEqual(result["remote_trace_id"], "langfuse-trace-123")
-        self.assertNotEqual(result["paperstorm_trace_id"], result["remote_trace_id"])
+        self.assertNotEqual(result["paperpilot_trace_id"], result["remote_trace_id"])
 
     def test_cli_restores_preexisting_knowledge_storm_modules(self):
         root = Path(__file__).resolve().parents[1]
@@ -317,7 +317,7 @@ class LangfuseBadcaseDemoTest(unittest.TestCase):
         spec.loader.exec_module(cli)
         names = (
             "knowledge_storm",
-            "knowledge_storm.paperstorm_observability",
+            "knowledge_storm.paperpilot_observability",
             "knowledge_storm.langfuse_badcase_demo",
         )
         sentinel = {name: types.ModuleType(name) for name in names}
@@ -343,7 +343,7 @@ class LangfuseBadcaseDemoTest(unittest.TestCase):
         spec.loader.exec_module(cli)
         names = (
             "knowledge_storm",
-            "knowledge_storm.paperstorm_observability",
+            "knowledge_storm.paperpilot_observability",
             "knowledge_storm.langfuse_badcase_demo",
         )
         sentinel = {name: types.ModuleType(name) for name in names}

@@ -1,5 +1,5 @@
 {
-  "dataset_name": "paperstorm-langfuse-observed-badcases",
+  "dataset_name": "paperpilot-langfuse-observed-badcases",
   "version": "2.6",
   "source": "results/langfuse_pim_nn_acceptance/langfuse_cloud_export.json",
   "scope": "Langfuse-derived semantic and operational regressions from real PIM neural-suppression research and 20-turn chat acceptance runs.",
