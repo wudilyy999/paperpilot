@@ -1,0 +1,66 @@
+[
+  {
+    "case_id": "pim-rf-neural-suppression",
+    "query": "PIM 神经网络抑制",
+    "expected_domain": "rf-passive-intermodulation",
+    "expected_must_term": "passive intermodulation",
+    "expected_negative_terms": ["dram", "processing-in-memory"]
+  },
+  {
+    "case_id": "pim-processing-in-memory",
+    "query": "processing-in-memory architecture for transformer inference",
+    "expected_domain": "processing-in-memory"
+  },
+  {
+    "case_id": "pim-explicit-passive-intermodulation",
+    "query": "passive intermodulation suppression in RF front ends",
+    "expected_domain": "rf-passive-intermodulation"
+  },
+  {
+    "case_id": "pim-followup-rewrite",
+    "query": "它有哪些抑制方法",
+    "history": [
+      {"role": "user", "content": "PIM 神经网络抑制"},
+      {"role": "assistant", "content": "我们正在讨论射频无源互调。"}
+    ],
+    "expected_domain": "rf-passive-intermodulation",
+    "standalone_contains": "passive intermodulation"
+  },
+  {
+    "case_id": "pim-zero-pronoun-followup",
+    "query": "有哪些抑制方法",
+    "history": [
+      {"role": "user", "content": "PIM 神经网络抑制"},
+      {"role": "assistant", "content": "这里讨论的是射频无源互调。"}
+    ],
+    "expected_domain": "rf-passive-intermodulation",
+    "standalone_contains": "passive intermodulation"
+  },
+  {
+    "case_id": "pim-stale-topic-cut-off",
+    "query": "它有哪些用途",
+    "history": [
+      {"role": "user", "content": "PIM 神经网络抑制"},
+      {"role": "assistant", "content": "这里讨论的是射频无源互调。"},
+      {"role": "user", "content": "Python 异步编程"},
+      {"role": "assistant", "content": "可以使用 asyncio。"}
+    ],
+    "expected_domain": "",
+    "expected_standalone": "它有哪些用途"
+  },
+  {
+    "case_id": "pim-zero-pronoun-explicit-new-entity",
+    "query": "如何优化 Python 异步编程",
+    "history": [
+      {"role": "user", "content": "PIM 神经网络抑制"},
+      {"role": "assistant", "content": "这里讨论的是射频无源互调。"}
+    ],
+    "expected_domain": "",
+    "expected_standalone": "如何优化 Python 异步编程"
+  },
+  {
+    "case_id": "pim-ambiguous-acronym",
+    "query": "PIM 有哪些应用",
+    "expected_domain": ""
+  }
+]

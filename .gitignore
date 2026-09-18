@@ -1,0 +1,40 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# mac
+.DS_Store
+
+# Other
+.vscode
+*.tsv
+*.pt
+gpt*.txt
+*.env
+local/
+local_*
+build/
+*.egg-info/
+.idea
+.venv
+
+# Project-specific
+secrets.toml
+local_zotero_root.txt
+*.log
+*/assertion.log
+*results/
+.venv/
+node_modules
+
+# 内部文档：仅保留在本地，不上传 GitHub
+docs/VERSION_PLAN.md
+docs/RESUME_INTERVIEW_PLAN.md
+docs/OPERATION_GUIDE.md
+docs/archive/
+docs/dual-agent-projects-resume.md
+
+# 本地 Agent 配置与内部开发计划，不上传 GitHub
+.claude/
+docs/superpowers/
