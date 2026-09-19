@@ -93,11 +93,11 @@ const pipelineArtifactEdges = [
 
 const pipelineHardRoutes = Object.freeze({
   execution: {
-    "writer-polish": {right: 4, laneY: .44, left: 8},
+    "writer-polish": {right: 4, laneY: .665, left: 8},
   },
   artifacts: {
-    "draft-polish": {right: 10, laneY: .61, left: 8},
-    "references-evaluate": {right: 20, laneY: .655, approach: 72},
+    "draft-polish": {right: 10, laneY: .665, left: 8},
+    "references-evaluate": {right: 20, laneY: .69, approach: 72},
   },
 });
 

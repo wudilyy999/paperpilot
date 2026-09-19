@@ -1,4 +1,6 @@
+import os
 import unittest
+import unittest.mock
 from types import SimpleNamespace
 
 from knowledge_storm.rm import ArxivRM, LocalPDFRM
@@ -277,11 +279,15 @@ class PaperPilotRetrieversTest(unittest.TestCase):
             build_lm_settings,
         )
 
-        settings = build_lm_settings(
-            SimpleNamespace(llm_provider="deepseek", llm_model="flash")
-        )
+        # 断言的是缺省值:本地 secrets.toml / shell 里的 DEEPSEEK_API_BASE 会覆盖默认,
+        # 测试应隔离外部环境,固定验证代码内的缺省。
+        with unittest.mock.patch.dict("os.environ", {}, clear=False):
+            os.environ.pop("DEEPSEEK_API_BASE", None)
+            settings = build_lm_settings(
+                SimpleNamespace(llm_provider="deepseek", llm_model="flash")
+            )
 
-        self.assertEqual(settings["model"], "openai/deepseek-v4-flash")
+        self.assertEqual(settings["model"], "openai/deepseek-v4.1-flash")
         self.assertEqual(settings["api_env"], "DEEPSEEK_API_KEY")
         self.assertEqual(settings["api_base"], "https://api.deepseek.com")
 
@@ -296,7 +302,7 @@ class PaperPilotRetrieversTest(unittest.TestCase):
 
         self.assertEqual(
             configs.outline_gen_lm.kwargs["extra_body"],
-            {"thinking": {"type": "disabled"}},
+            {"reasoning_effort": "none"},
         )
 
     def test_paper_storm_runner_builds_minimax_settings(self):

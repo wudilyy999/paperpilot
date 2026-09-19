@@ -74,10 +74,10 @@ class PaperPilotV60UITest(unittest.TestCase):
 
     def test_pipeline_uses_row_major_snake_layout_and_semantic_ports(self):
         for marker in (
-            'data-node="retrieval" style="--col:1;--row:3"',
-            'data-node="evidence" style="--col:2;--row:3"',
-            'data-node="outline" style="--col:3;--row:3"',
-            'data-node="writer" style="--col:4;--row:3"',
+            'data-node="retrieval" style="--col:1;--row:2"',
+            'data-node="evidence" style="--col:2;--row:2"',
+            'data-node="outline" style="--col:3;--row:2"',
+            'data-node="writer" style="--col:4;--row:2"',
             'class="pipeline-node aux-node" data-node="polish"',
             'class="pipeline-node aux-node" data-node="evaluate"',
             'relay-output',

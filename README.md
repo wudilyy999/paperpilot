@@ -11,6 +11,20 @@ make test-fast        # 离线跑确定性单测
 make dashboard        # 打开前端仪表盘
 ```
 
+### 首次运行前:缓存 MiniLM Embedding 模型
+
+STORM 写作阶段的语义筛选用 `sentence-transformers/paraphrase-MiniLM-L6-v2`(约 90MB)
+做余弦 Top-K。运行时默认离线加载,本地没有缓存会直接失败。首次使用前下载一次:
+
+```bash
+PAPERPILOT_ALLOW_MODEL_DOWNLOAD=1 python -c "
+from huggingface_hub import snapshot_download
+snapshot_download('sentence-transformers/paraphrase-MiniLM-L6-v2')
+"
+```
+
+模型落到 `~/.cache/huggingface/hub/` 后,之后的运行全部离线读缓存,无需再设环境变量。
+
 PaperPilot 是基于 Stanford STORM 扩展的论文调研与知识问答平台。系统面向科学论文、
 本地 PDF、Zotero 文献库和企业内部文档，提供多 Agent 深度调研、证据约束问答、混合检索、
 跨会话记忆、上下文治理、运行时恢复、公开 Benchmark 与 Langfuse 可观测性。

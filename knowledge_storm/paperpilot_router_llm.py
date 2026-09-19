@@ -9,13 +9,16 @@ Policy:
 Env knobs:
     PAPERPILOT_ROUTER_LLM         1 to force LLM routing in fake mode
     PAPERPILOT_ROUTER_PROVIDER    deepseek (default)
-    PAPERPILOT_ROUTER_MODEL       deepseek-v4-flash (default)
+    PAPERPILOT_ROUTER_MODEL       deepseek-v4.1-flash (default)
     PAPERPILOT_ROUTER_API_KEY     falls back to DEEPSEEK_API_KEY
     PAPERPILOT_ROUTER_API_BASE    falls back to DEEPSEEK_API_BASE
     PAPERPILOT_ROUTER_MAX_TOKENS  structured planner output budget (default 2048)
+    PAPERPILOT_LLM_EXTRA_HEADERS  JSON object, merged into every litellm call
+                                  (e.g. KimiCode proxy needs x-opencode-session)
 """
 
 import functools
+import json
 import os
 import re
 import time
@@ -24,9 +27,29 @@ from typing import Callable, Dict, Optional
 
 
 DEFAULT_PROVIDER = "deepseek"
-DEFAULT_MODEL = "deepseek-v4-flash"
+DEFAULT_MODEL = "deepseek-v4.1-flash"
 DEEPSEEK_V4_CONTEXT_TOKENS = 1_000_000
 DEEPSEEK_V4_MAX_OUTPUT_TOKENS = 384_000
+
+
+def _apply_extra_headers():
+    """Merge PAPERPILOT_LLM_EXTRA_HEADERS (JSON) into litellm's global headers.
+
+    KimiCode's local gateway (127.0.0.1:8917) requires x-opencode-session for
+    deepseek-v4.1-flash routing; official DeepSeek ignores unknown headers.
+    """
+    raw = str(os.getenv("PAPERPILOT_LLM_EXTRA_HEADERS", "")).strip()
+    if not raw:
+        return
+    try:
+        headers = json.loads(raw)
+    except ValueError:
+        return
+    if not isinstance(headers, dict):
+        return
+    import litellm
+
+    litellm.headers = {**(litellm.headers or {}), **headers}
 
 
 def _router_cache_size() -> int:
@@ -289,6 +312,7 @@ def build_context_summarizer_callable(enabled: Optional[bool] = None):
 def _resolve_provider_config():
     """Return (model_name, api_key, api_base) or None when not configured."""
     _load_flat_toml_env()
+    _apply_extra_headers()
     provider = os.getenv("PAPERPILOT_ROUTER_PROVIDER") or DEFAULT_PROVIDER
     model = os.getenv("PAPERPILOT_ROUTER_MODEL") or DEFAULT_MODEL
     api_key = (
@@ -303,7 +327,7 @@ def _resolve_provider_config():
     )
     if not api_key:
         return None
-    if provider == "deepseek" and model.startswith("deepseek-v4-"):
+    if provider == "deepseek" and model.startswith(("deepseek-v4-", "deepseek-v4.")):
         # Older LiteLLM releases do not map DeepSeek V4 yet. Its official API
         # is OpenAI-compatible, so use the generic provider without relying on
         # LiteLLM's model metadata table.

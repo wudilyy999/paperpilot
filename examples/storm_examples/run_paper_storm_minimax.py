@@ -110,11 +110,11 @@ def build_lm_settings(args):
             "api_base": os.getenv("MINIMAX_API_BASE", "https://api.minimax.chat/v1"),
         }
     if args.llm_provider == "deepseek":
-        model = args.llm_model or "openai/deepseek-v4-flash"
+        model = args.llm_model or "openai/deepseek-v4.1-flash"
         if model == "flash":
             # DeepSeek V4 uses an OpenAI-compatible endpoint. The openai/
             # prefix keeps this working with the verified LiteLLM release.
-            model = "openai/deepseek-v4-flash"
+            model = "openai/deepseek-v4.1-flash"
         return {
             "model": model,
             "api_env": "DEEPSEEK_API_KEY",
@@ -147,9 +147,14 @@ def build_lm_configs(args):
         "top_p": 0.9,
     }
     if args.llm_provider == "deepseek":
-        # DeepSeek V4 defaults to high-effort thinking. STORM's structured
-        # query/outline/article stages need the token budget for visible output.
-        llm_kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+        # DeepSeek V4.x on KimiCode's gateway routes thinking through max_tokens
+        # and returns empty content when the budget is consumed by reasoning.
+        # reasoning_effort=none skips that path entirely; extra_headers carries
+        # the gateway's x-opencode-session routing requirement.
+        llm_kwargs["extra_body"] = {"reasoning_effort": "none"}
+        llm_kwargs["extra_headers"] = json.loads(
+            os.getenv("PAPERPILOT_LLM_EXTRA_HEADERS", "{}")
+        )
     model_name = settings["model"]
 
     lm_configs = STORMWikiLMConfigs()

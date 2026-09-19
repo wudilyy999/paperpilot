@@ -636,6 +636,8 @@ class PaperPilotConversationRuntime:
                 state.get("router_decision") or {}, "evidence.search"
             ) or state["message"]
             if not task_id:
+                task_id = self._match_succeeded_task(question)
+            if not task_id:
                 result = {"answer": "", "citations": [], "evidence": [], "grounded": False}
             else:
                 result = self.task_service.query_knowledge_base(
@@ -669,6 +671,39 @@ class PaperPilotConversationRuntime:
         except Exception as error:
             self._error_event(state, "knowledge_retrieval", started, error)
             raise
+
+    def _match_succeeded_task(self, question: str) -> str:
+        """Pick the most relevant succeeded research task for an unbound query.
+
+        Reuses each task's runtime RAG index (BM25 + dense + RRF) to score
+        the question against the task's own evidence pool. Returns the task_id
+        with the strongest top hit, or "" when nothing clears the gate.
+        """
+        from .retrieval_runtime import search_runtime_index
+
+        best_task_id = ""
+        best_score = 0.0
+        for task in self.task_service.list_tasks(status="succeeded"):
+            output_dir = task.get("output_dir")
+            if not output_dir:
+                continue
+            try:
+                outcome = search_runtime_index(
+                    output_dir,
+                    question,
+                    top_k=1,
+                    history=(),
+                )
+            except Exception:
+                continue
+            hits = outcome.get("results") or []
+            if not hits:
+                continue
+            score = float(hits[0].get("score") or hits[0].get("dense_score") or 0)
+            if score > best_score:
+                best_score = score
+                best_task_id = task.get("task_id") or ""
+        return best_task_id
 
     def _evidence_grade(self, state: ConversationState):
         started = time.perf_counter()

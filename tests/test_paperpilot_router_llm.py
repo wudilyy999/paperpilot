@@ -43,7 +43,7 @@ class PaperPilotRouterLLMTest(unittest.TestCase):
             "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
         }
 
-        result = _completion_result(response, "openai/deepseek-v4-flash")
+        result = _completion_result(response, "openai/deepseek-v4.1-flash")
 
         self.assertIn('"action":"respond"', result["content"])
         self.assertEqual(result["structured_output"], "function_call")
@@ -119,7 +119,7 @@ class PaperPilotRouterLLMTest(unittest.TestCase):
 
         result = complete_chat_with_telemetry(
             completion=completion,
-            model="openai/deepseek-v4-flash",
+            model="openai/deepseek-v4.1-flash",
             prompt="请续写",
             api_key="test",
             api_base="https://example.invalid",
@@ -141,7 +141,7 @@ class PaperPilotRouterLLMTest(unittest.TestCase):
 
         result = complete_chat_with_telemetry(
             completion=completion,
-            model="openai/deepseek-v4-flash",
+            model="openai/deepseek-v4.1-flash",
             prompt="继续故事",
             api_key="test",
             api_base="https://example.invalid",
