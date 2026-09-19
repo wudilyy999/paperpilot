@@ -20,8 +20,8 @@ class PaperPilotDemoUIV56Test(unittest.TestCase):
         self.assertIn('id="pipeline-artifact-wires"', self.index)
 
     def test_frontend_assets_are_versioned_to_prevent_mixed_releases(self):
-        self.assertIn('href="styles.css?v=1.0.1"', self.index)
-        self.assertIn('src="app.js?v=1.0.1"', self.index)
+        self.assertIn('href="styles.css?v=1.0.0"', self.index)
+        self.assertIn('src="app.js?v=1.0.0"', self.index)
         for node in ("request", "retrieval", "evidence", "outline", "writer", "polish", "evaluate", "deliver"):
             self.assertIn('data-node="{0}"'.format(node), self.index)
         for obsolete in ('data-node="persona"', 'data-node="dialogue"', 'data-node="query"', 'data-node="research"'):
