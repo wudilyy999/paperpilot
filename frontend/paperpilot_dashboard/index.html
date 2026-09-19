@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PaperPilot Agent Workspace</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2300c2a8'/%3E%3Cpath d='M8 24V8h15v4H13v3h8v4h-8v5z' fill='%23060a0e'/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="styles.css?v=1.0.1" />
+    <link rel="stylesheet" href="styles.css?v=1.0.0" />
   </head>
   <body data-mode="research">
     <header class="topbar">
@@ -75,7 +75,7 @@
                 <button class="pipeline-node aux-node" data-node="polish" style="--col:1;--row:3" type="button"><span class="flow-port flow-in"></span><span class="flow-port flow-out"></span><span class="node-head"><i>P</i><b>全文润色</b><em>WAIT</em></span><small class="node-description">整篇去重、摘要与结构统一</small><span class="node-port input-port" data-port="draft"><i></i>storm_gen_article.txt</span><span class="node-port output-port relay-output" data-port="article"><i></i>storm_gen_article_polished.txt</span></button>
                 <button class="pipeline-node aux-node" data-node="evaluate" style="--col:2;--row:3" type="button"><span class="flow-port flow-in"></span><span class="flow-port flow-out"></span><span class="node-head"><i>EV</i><b>引用与质量检查</b><em>WAIT</em></span><small class="node-description">规范化原文引用并生成质量评分</small><span class="node-port input-port port-row-2" data-port="article"><i></i>storm_gen_article_polished.txt</span><span class="node-port input-port" data-port="references"><i></i>url_to_info.json</span><span class="node-port output-port relay-output" data-port="scorecard"><i></i>scorecard.json</span></button>
                 <button class="pipeline-node system-node" data-node="deliver" style="--col:3;--row:3" type="button"><span class="flow-port flow-in"></span><span class="flow-port flow-out"></span><span class="node-head"><i>OUT</i><b>交付产物</b><em>WAIT</em></span><small class="node-description">发布 Markdown、Trace 与可打印 PDF</small><span class="node-port input-port port-row-2" data-port="article"><i></i>storm_gen_article_polished.txt</span><span class="node-port input-port" data-port="scorecard"><i></i>scorecard.json</span><span class="node-port output-port terminal-output" data-port="report"><i></i>paperpilot_report.pdf</span></button>
-<div class="pipeline-legend" id="pipeline-legend" title="粗实线：执行顺序 · 细虚线：文件传递"><span><i class="legend-input"></i>输入</span><span><i class="legend-relay"></i>后续使用的输出</span><span><i class="legend-terminal"></i>终端产物</span></div>
+                <div class="pipeline-legend" id="pipeline-legend"><span><i class="legend-input"></i>输入</span><span><i class="legend-relay"></i>后续使用的输出</span><span><i class="legend-terminal"></i>终端产物</span><span><b class="legend-execution"></b>执行顺序</span><span><b class="legend-artifact"></b>文件传递</span></div>
               </div>
               <aside class="pipeline-inspector" id="pipeline-inspector">
                 <div><span>NODE INSPECTOR</span><b id="pipeline-node-status">WAITING</b></div>
@@ -203,6 +203,6 @@
     </div>
 
     <div class="toast hidden" id="toast" role="status"></div>
-    <script src="app.js?v=1.0.1"></script>
+    <script src="app.js?v=1.0.0"></script>
   </body>
 </html>
