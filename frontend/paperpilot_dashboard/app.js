@@ -79,25 +79,25 @@ const pipelineExecutionEdges = [
 ];
 
 const pipelineArtifactEdges = [
-  {id: "task-research", from: "request", to: "retrieval", port: "research_task", label: "research_task.json"},
+  {id: "task-research", from: "request", to: "retrieval", port: "research_task", label: "", labelPos: .28},
   {id: "information-evidence", from: "retrieval", to: "evidence", port: "information", label: "CandidatePool"},
   {id: "conversation-outline", from: "evidence", to: "outline", port: "conversation", label: "conversation_log.json"},
-  {id: "information-writer", from: "evidence", to: "writer", port: "evidence_table", label: "StormInformationTable"},
+  {id: "information-writer", from: "evidence", to: "writer", port: "evidence_table", targetPort: "information", label: ""},
   {id: "outline-writer", from: "outline", to: "writer", port: "outline", label: "storm_gen_outline.txt"},
   {id: "draft-polish", from: "writer", to: "polish", port: "draft", label: "storm_gen_article.txt"},
   {id: "references-evaluate", from: "writer", to: "evaluate", port: "references", label: "url_to_info.json"},
-  {id: "article-evaluate", from: "polish", to: "evaluate", port: "article", label: "storm_gen_article_polished.txt"},
+  {id: "article-evaluate", from: "polish", to: "evaluate", port: "article", label: ""},
   {id: "article-deliver", from: "polish", to: "deliver", sourcePort: "article", targetPort: "article", label: "storm_gen_article_polished.txt"},
   {id: "score-deliver", from: "evaluate", to: "deliver", port: "scorecard", label: "scorecard.json"},
 ];
 
 const pipelineHardRoutes = Object.freeze({
   execution: {
-    "writer-polish": {right: 4, laneY: .665, left: 8},
+    "writer-polish": {leftLane: 22, laneY: .78, sourceSide: "left"},
   },
   artifacts: {
-    "draft-polish": {right: 10, laneY: .665, left: 8},
-    "references-evaluate": {right: 20, laneY: .69, approach: 72},
+    "draft-polish": {leftLane: 22, laneY: .78, labelAtLane: true},
+    "references-evaluate": {leftLane: 34, laneY: .71, exitOffset: 12, labelAtLane: true},
   },
 });
 
@@ -287,9 +287,9 @@ function drawPipelineWires() {
     const source = $(`.pipeline-node[data-node="${edge.from}"] .output-port[data-port="${sourcePort}"] i`);
     const target = $(`.pipeline-node[data-node="${edge.to}"] .input-port[data-port="${targetPort}"] i`);
     if (!source || !target) return "";
-    const pathId = `artifact-path-${edge.id}`;
-    const route = pipelineArtifactRoute(source, target, canvasRect, index, edge.id);
-    return `<path id="${pathId}" class="artifact-wire" data-edge-id="${edge.id}" data-from="${edge.from}" data-to="${edge.to}" d="${route.path}" /><text class="artifact-label" data-label-x="${route.labelX}" data-label-y="${route.labelY}">${escapeHtml(edge.label)}</text>`;
+    const route = pipelineArtifactRoute(source, target, canvasRect, index, edge.id, edge);
+    const labelMarkup = edge.label ? `<text class="artifact-label" data-label-x="${route.labelX}" data-label-y="${route.labelY}">${escapeHtml(edge.label)}</text>` : "";
+    return `<path class="artifact-wire" data-edge-id="${edge.id}" data-from="${edge.from}" data-to="${edge.to}" d="${route.path}" />${labelMarkup}`;
   }).join("");
   positionArtifactLabels();
   updatePipelineWires();
@@ -311,7 +311,10 @@ function pipelineExecutionPath(source, target, canvasRect, edgeId = "") {
   const points = pipelinePortPoints(source, target, canvasRect);
   if (!points) return "";
   const hardRoute = pipelineHardRoutes.execution[edgeId];
-  if (hardRoute) return pipelineCoordinateRoute(points, canvasRect, hardRoute);
+  if (hardRoute) {
+    const sourceLeft = source.closest(".pipeline-node").getBoundingClientRect().left - canvasRect.left - 8;
+    return pipelineLeftWrapRoute(points, canvasRect, hardRoute, sourceLeft);
+  }
   if (Math.abs(points.y1 - points.y2) < 24 && points.x2 > points.x1) {
     const bend = Math.max(24, Math.min(48, (points.x2 - points.x1) * .42));
     return `M ${points.x1} ${points.y1} C ${points.x1 + bend} ${points.y1}, ${points.x2 - bend} ${points.y2}, ${points.x2} ${points.y2}`;
@@ -320,40 +323,21 @@ function pipelineExecutionPath(source, target, canvasRect, edgeId = "") {
 }
 
 function pipelineRowWrapPath(points, canvasRect) {
-  return pipelineCoordinateRoute(points, canvasRect, {right: 10, laneY: .44, left: 18});
+  return pipelineLeftWrapRoute(points, canvasRect, {leftLane: 26, laneY: .40});
 }
 
-function pipelineCoordinateRoute({x1, y1, x2, y2}, canvasRect, route) {
-  const rightX = canvasRect.width - route.right;
+function pipelineLeftWrapRoute({x1, y1, x2, y2}, canvasRect, route, exitX) {
   const laneY = canvasRect.height * route.laneY;
-  const approachX = route.left ?? Math.max(8, x2 - (route.approach || 72));
-  const radius = Math.max(3, Math.min(
-    12,
-    Math.abs(rightX - x1) / 2,
-    Math.abs(laneY - y1) / 3,
-    Math.abs(rightX - approachX) / 4,
-    Math.abs(y2 - laneY) / 3,
-    Math.abs(x2 - approachX) / 2,
-  ));
-  return [
-    `M ${x1} ${y1}`,
-    `L ${rightX - radius} ${y1}`,
-    `C ${rightX} ${y1}, ${rightX} ${y1}, ${rightX} ${y1 + radius}`,
-    `L ${rightX} ${laneY - radius}`,
-    `C ${rightX} ${laneY}, ${rightX} ${laneY}, ${rightX - radius} ${laneY}`,
-    `L ${approachX + radius} ${laneY}`,
-    `C ${approachX} ${laneY}, ${approachX} ${laneY}, ${approachX} ${laneY + radius}`,
-    `L ${approachX} ${y2 - radius}`,
-    `C ${approachX} ${y2}, ${approachX} ${y2}, ${approachX + radius} ${y2}`,
-    `L ${x2} ${y2}`,
-  ].join(" ");
+  const laneX = Math.min(route.leftLane ?? exitX ?? 26, x2 - 8);
+  const dropX = exitX ?? x1;
+  return `M ${x1} ${y1} C ${x1} ${(y1 + laneY) / 2}, ${dropX} ${(y1 + laneY) / 2}, ${dropX} ${laneY} L ${laneX} ${laneY} L ${x2} ${laneY} C ${x2} ${(laneY + y2) / 2}, ${x2} ${(laneY + y2) / 2}, ${x2} ${y2}`;
 }
 
 function pipelineArtifactPath(source, target, canvasRect, offsetSeed = 0) {
   return pipelineArtifactRoute(source, target, canvasRect, offsetSeed).path;
 }
 
-function pipelineArtifactRoute(source, target, canvasRect, offsetSeed = 0, edgeId = "") {
+function pipelineArtifactRoute(source, target, canvasRect, offsetSeed = 0, edgeId = "", edge = null) {
   const points = pipelinePortPoints(source, target, canvasRect);
   if (!points) return {path: "", labelX: 0, labelY: 0};
   const sourceNode = source.closest(".pipeline-node")?.getBoundingClientRect();
@@ -363,27 +347,31 @@ function pipelineArtifactRoute(source, target, canvasRect, offsetSeed = 0, edgeI
   const hardRoute = pipelineHardRoutes.artifacts[edgeId];
   if (hardRoute) {
     const laneY = canvasRect.height * hardRoute.laneY;
+    const exitX = sourceNode.left - canvasRect.left - 8 - (hardRoute.exitOffset || 0);
     return {
-      path: pipelineCoordinateRoute(points, canvasRect, hardRoute),
-      labelX: hardRoute.approach ? points.x2 - hardRoute.approach - 96 : (points.x1 + points.x2) / 2,
-      labelY: laneY - 8,
+      path: pipelineLeftWrapRoute(points, canvasRect, hardRoute, exitX),
+      labelX: hardRoute.labelAtLane ? (hardRoute.leftLane ?? exitX) + 70 : exitX + 40,
+      labelY: laneY - 7,
     };
   }
   const adjacent = sameRow && points.x2 > points.x1 && points.x2 - points.x1 < 180;
   if (adjacent) {
     const bend = Math.max(20, (points.x2 - points.x1) * .44);
+    const labelPos = edge?.labelPos ?? .5;
+    const sourceRight = sourceNode.right - canvasRect.left;
+    const targetLeft = targetNode.left - canvasRect.left;
     return {
       path: `M ${points.x1} ${points.y1} C ${points.x1 + bend} ${points.y1}, ${points.x2 - bend} ${points.y2}, ${points.x2} ${points.y2}`,
-      labelX: (points.x1 + points.x2) / 2,
-      labelY: Math.min(points.y1, points.y2) - 7,
+      labelX: sourceRight + (targetLeft - sourceRight) * labelPos,
+      labelY: Math.min(sourceNode.top, targetNode.top) - canvasRect.top - 14,
     };
   }
   const sourceBottom = sourceNode.bottom - canvasRect.top;
   const targetTop = targetNode.top - canvasRect.top;
   const laneOffset = artifactLaneOffset(offsetSeed);
   const laneY = sameRow
-    ? Math.min(canvasRect.height - 12, sourceBottom + 16 + laneOffset)
-    : Math.min(targetTop - 14, sourceBottom + 16 + laneOffset);
+    ? Math.min(canvasRect.height - 10, sourceBottom + 18 + laneOffset)
+    : targetTop - 16 - laneOffset;
   const curve = 28;
   const exitX = points.x1 + curve * 1.7;
   const entryX = points.x2 - curve * 1.7;
